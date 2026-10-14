@@ -1,390 +1,447 @@
 import asyncio
-import html
+import hashlib
+import hmac
+import json
 import os
 import random
+import time
+from pathlib import Path
+from urllib.parse import parse_qsl
 
-from aiogram import Bot, Dispatcher, F, types
+from aiogram import Bot, Dispatcher, types
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.filters import Command, CommandStart
-from aiogram.types import (
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    KeyboardButton,
-    ReplyKeyboardMarkup,
-    ReplyKeyboardRemove,
-)
+from aiogram.filters import CommandStart
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, MenuButtonWebApp, WebAppInfo
+from aiohttp import web
 from dotenv import load_dotenv
 
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+WEBAPP_URL = (os.getenv("WEBAPP_URL") or "").strip().rstrip("/")
 if not BOT_TOKEN:
-    raise RuntimeError("BOT_TOKEN не найден. Проверь файл .env")
+    raise RuntimeError("BOT_TOKEN не найден. Проверь файл '.env' (с точкой).")
+if not WEBAPP_URL.startswith("https://"):
+    raise RuntimeError("WEBAPP_URL должен быть публичным https-адресом, например https://my-app.herokuapp.com")
 
-from gpt import SocialBridgeAI
+from db import DB  # noqa: E402
+from gpt import LANGS, TOPICS, SocialBridgeAI  # noqa: E402
+from matching import CATALOG  # noqa: E402
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 ai = SocialBridgeAI()
+db = DB()
 
-chats = {}
-user_chats = {}
-user_active = {}
-user_states = {}
-captcha_answers = {}
-waiting_pool = {}  # chat_id -> {"topic": str, "interests": str}
-_next_chat_id = 0
-
+# ==========================================
+# ХРАНИЛИЩЕ: кэш в памяти + запись в SQLite
+# ==========================================
+# Тип чата: AI — разговор с ИИ, HUMAN — живой собеседник, CLOSED — завершён.
+# Только в памяти (не пишутся в БД): ver — версия чата (растёт при сбросе/закрытии/мэтче),
+# busy — идёт запрос к ИИ.
+chats = {}          # chat_id -> dict
+user_chats = {}     # user_id -> [chat_id, ...]
+user_settings = {}  # user_id -> {"lang": "auto", "push": True}
+user_seen = {}      # user_id -> время последнего запроса из Mini App (чтобы знать, открыто ли приложение)
+waiting_pool = {}   # chat_id (AI-чата) -> {"topic", "interests", "subs", "t"}
+_next_id = 0
+_tasks = set()
 match_lock = asyncio.Lock()
+
 MAX_CHATS = 10
+ONLINE_WINDOW = 8   # секунд: если приложение опрашивало сервер недавно, считаем пользователя «в сети»
 AVATARS = ["🦊", "🐼", "🦉", "🐯", "🐸", "🦄", "🐙", "🐧", "🦁", "🐨", "🐺", "🦋"]
-
-RESET_BUTTON = "🔄 Сбросить диалог"
-CHATS_BUTTON = "📂 Мои чаты"
-LIST_TITLE = "📂 Твои чаты"
-
-main_keyboard = ReplyKeyboardMarkup(
-    keyboard=[[KeyboardButton(text=CHATS_BUTTON), KeyboardButton(text=RESET_BUTTON)]],
-    resize_keyboard=True,
-)
+INDEX_FILE = Path(__file__).parent / "webapp" / "index.html"
 
 
-def new_chat(user_id: int, ctype: str = "AI") -> int:
-    global _next_chat_id
-    _next_chat_id += 1
-    cid = _next_chat_id
-    user_chats.setdefault(user_id, [])
-    chats[cid] = {
-        "id": cid,
-        "owner": user_id,
-        "type": ctype,
-        "peer": None,
-        "avatar": "🤖",
-        "num": len(user_chats[user_id]) + 1,
-        "history": [],
-        "unread": 0,
+def cfg_of(uid: int) -> dict:
+    return user_settings.setdefault(uid, {"lang": "auto", "push": True})
+
+
+def online(uid: int) -> bool:
+    return time.time() - user_seen.get(uid, 0) < ONLINE_WINDOW
+
+
+def restore():
+    """Загружает чаты и настройки из БД после перезапуска."""
+    global _next_id
+    for c in db.load():
+        c.update(ver=0, busy=False)
+        chats[c["id"]] = c
+        user_chats.setdefault(c["owner"], []).append(c["id"])
+        _next_id = max(_next_id, c["id"])
+    for uid, lang, push in db.load_users():
+        user_settings[uid] = {"lang": lang if lang in LANGS else "auto", "push": bool(push)}
+    print(f"[DB] Загружено чатов: {len(chats)}, пользователей: {len(user_settings)}")
+
+
+def spawn(coro):
+    t = asyncio.create_task(coro)
+    _tasks.add(t)
+    t.add_done_callback(_tasks.discard)
+
+
+def save(c: dict):
+    db.save_chat(c)
+
+
+def add_msg(c: dict, role: str, content: str):
+    c["history"].append({"role": role, "content": content})
+    db.add_message(c["id"], role, content)
+
+
+def clear_msgs(c: dict):
+    c["history"] = []
+    db.clear_messages(c["id"])
+
+
+def new_chat(uid: int) -> int:
+    global _next_id
+    _next_id += 1
+    user_chats.setdefault(uid, [])
+    c = {
+        "id": _next_id, "owner": uid, "type": "AI", "peer": None, "avatar": "🤖",
+        "num": len(user_chats[uid]) + 1, "history": [], "unread": 0, "topic": None, "n": 0, "subs": [],
+        "ver": 0, "busy": False,
     }
-    user_chats[user_id].append(cid)
-    return cid
+    chats[_next_id] = c
+    user_chats[uid].append(_next_id)
+    save(c)
+    return _next_id
 
 
-def title(c: dict) -> str:
-    base = f"Чат {c['num']}"
-    if c["type"] == "AI":
-        return f"{base} 🤖 ИИ"
-    if c["type"] == "HUMAN":
-        return f"{base} {c['avatar']} Собеседник"
-    return f"{base} 🔒 {c['avatar']}"
+def own_chat(uid: int, cid):
+    c = chats.get(cid) if isinstance(cid, int) else None
+    return c if c and c["owner"] == uid else None
 
 
-def ensure_ai_chat(user_id: int) -> int:
-    for cid in user_chats.get(user_id, []):
-        if chats[cid]["type"] == "AI":
-            return cid
-    return new_chat(user_id, "AI")
-
-
-def chats_markup(user_id: int) -> InlineKeyboardMarkup:
-    rows = []
-    active = user_active.get(user_id)
-    for cid in user_chats.get(user_id, []):
-        c = chats[cid]
-        mark = "▶️ " if cid == active else ""
-        unread = f"  🔴 {c['unread']}" if c["unread"] else ""
-        rows.append([InlineKeyboardButton(text=f"{mark}{title(c)}{unread}", callback_data=f"open:{cid}")])
-    rows.append([InlineKeyboardButton(text="➕ Новый чат с ИИ", callback_data="new")])
-    return InlineKeyboardMarkup(inline_keyboard=rows)
-
-
-def open_button(cid: int) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"Открыть {title(chats[cid])}", callback_data=f"open:{cid}")]
-    ])
-
-
-def render_history(c: dict, limit: int = 5) -> str:
-    lines = []
-    for m in c["history"][-limit:]:
-        role = m["role"]
-        who = "Ты" if role in ("user", "me") else (c["avatar"] if role == "partner" else "🤖")
-        lines.append(f"<b>{who}:</b> {html.escape(m['content'])}")
-    return "\n".join(lines) if lines else "<i>Пока пусто — напиши что-нибудь.</i>"
-
-
-async def safe_send(chat_id: int, text: str, **kwargs):
+async def push(uid: int, text: str):
+    """Уведомление в Telegram, только если пользователь не отключил его и приложение сейчас закрыто
+    (когда открыто — в самом приложении появляется всплывающая карточка)."""
+    if not cfg_of(uid)["push"] or online(uid):
+        return
+    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Открыть чаты", web_app=WebAppInfo(url=WEBAPP_URL))]])
     try:
-        return await bot.send_message(chat_id=chat_id, text=text, **kwargs)
+        await bot.send_message(uid, text, reply_markup=kb)
     except Exception as e:
-        print(f"[ERROR] Не удалось отправить сообщение в {chat_id}: {e}")
-        return None
+        print(f"[ERROR] push {uid}: {e}")
 
 
-async def show_chats(user_id: int, chat_id: int):
-    await safe_send(chat_id, f"{LIST_TITLE}\nВыбери, куда переключиться:", reply_markup=chats_markup(user_id))
+def snapshot(uid: int) -> dict:
+    out = []
+    for cid in user_chats.get(uid, []):
+        c = chats[cid]
+        out.append({
+            "id": cid, "num": c["num"], "type": c["type"], "avatar": c["avatar"],
+            "topic": c["topic"], "unread": c["unread"], "subs": c["subs"], "n": c["n"],
+            "messages": [{"me": m["role"] in ("user", "me"), "text": m["content"]} for m in c["history"][-80:]],
+        })
+    return {"chats": out, "topics": TOPICS, "langs": LANGS, "settings": cfg_of(uid), "catalog": CATALOG}
 
 
-async def start_ai_chat(user_id: int, tg_chat_id: int, user_name: str, header: str = ""):
-    cid = ensure_ai_chat(user_id) if not header.startswith("➕") else new_chat(user_id, "AI")
-    user_active[user_id] = cid
-    await bot.send_chat_action(chat_id=tg_chat_id, action="typing")
-    welcome = await ai.generate_welcome(user_name=user_name, user_id=user_id, chat_id=tg_chat_id)
-    chats[cid]["history"].append({"role": "assistant", "content": welcome})
-    prefix = f"{header}\n\n" if header else ""
-    await safe_send(tg_chat_id, f"{prefix}{html.escape(welcome)}", reply_markup=main_keyboard)
-
+# ==========================================
+# ЛОГИКА ЧАТОВ
+# ==========================================
 
 async def close_human_chat(cid: int, partner_text: str):
     c = chats[cid]
     c["type"] = "CLOSED"
+    c["ver"] += 1
     waiting_pool.pop(cid, None)
-
+    save(c)
     pc = chats.get(c["peer"]) if c["peer"] else None
     if pc and pc["type"] == "HUMAN":
-        pc["type"] = "CLOSED"
-        pc["unread"] = 0
-        p = pc["owner"]
-        note = f"{partner_text}\n🔒 <b>{title(pc)}</b> завершён."
-        if user_active.get(p) == pc["id"]:
-            user_active[p] = ensure_ai_chat(p)
-            note += f"\nТы переключён в <b>{title(chats[user_active[p]])}</b>."
-        await safe_send(p, note, reply_markup=main_keyboard)
+        pc["type"], pc["unread"] = "CLOSED", 0
+        pc["ver"] += 1
+        save(pc)
+        await push(pc["owner"], f"{partner_text}\nЧат {pc['num']} завершён.")
 
 
-def generate_captcha(user_id: int) -> str:
-    num1, num2 = random.randint(1, 10), random.randint(1, 10)
-    operator = random.choice(["+", "-"])
-    if operator == "+":
-        answer = num1 + num2
+async def try_match(c: dict) -> bool:
+    """Поиск собеседника. Модель вызывается БЕЗ блокировки, замок держим только на проверках и записи пары."""
+    uid, cid, ver = c["owner"], c["id"], c["ver"]
+    if cid in waiting_pool:     # уже в очереди — интересы не пересчитываем, время ожидания сохраняем
+        interests, t0 = waiting_pool[cid]["interests"], waiting_pool[cid]["t"]
     else:
-        if num1 < num2:
-            num1, num2 = num2, num1
-        answer = num1 - num2
-    captcha_answers[user_id] = answer
-    return f"{num1} {operator} {num2}"
-
-
-@dp.message(CommandStart())
-async def cmd_start(message: types.Message):
-    user_id = message.from_user.id
-    for cid in list(user_chats.get(user_id, [])):
-        if chats[cid]["type"] == "HUMAN":
-            await close_human_chat(cid, "Собеседник покинул диалог.")
-        waiting_pool.pop(cid, None)
-        chats.pop(cid, None)
-    user_chats[user_id] = []
-    user_active.pop(user_id, None)
-    user_states[user_id] = "CAPTCHA"
-
-    expr = generate_captcha(user_id)
-    await message.answer(
-        "🤖 <b>Проверка на робота</b>\n\nРеши пример:\n👉 <code>{} = ?</code>".format(expr),
-        reply_markup=ReplyKeyboardRemove(),
-    )
-
-
-@dp.message(Command("chats"))
-@dp.message(F.text == CHATS_BUTTON)
-async def cmd_chats(message: types.Message):
-    user_id = message.from_user.id
-    if user_states.get(user_id) != "READY":
-        await message.answer("Сначала пройди проверку: /start")
-        return
-    await show_chats(user_id, message.chat.id)
-
-
-@dp.message(Command("reset"))
-@dp.message(F.text == RESET_BUTTON)
-async def cmd_reset(message: types.Message):
-    user_id = message.from_user.id
-    if user_states.get(user_id) != "READY":
-        await message.answer("Сначала пройди проверку: /start")
-        return
-
-    c = chats[user_active[user_id]]
-    if c["type"] == "HUMAN":
-        label = title(c)
-        await close_human_chat(c["id"], "Собеседник завершил диалог.")
-        user_active[user_id] = ensure_ai_chat(user_id)
-        await message.answer(f"🔒 <b>{label}</b> завершён.", reply_markup=main_keyboard)
-    elif c["type"] == "AI":
-        c["history"] = []
-        waiting_pool.pop(c["id"], None)
-        await message.answer(f"🧹 <b>{title(c)}</b> очищен.", reply_markup=main_keyboard)
-    else:
-        user_active[user_id] = ensure_ai_chat(user_id)
-        await message.answer("Переключил тебя на ИИ.", reply_markup=main_keyboard)
-
-
-@dp.callback_query(F.data.startswith("open:"))
-async def cb_open(callback: types.CallbackQuery):
-    user_id = callback.from_user.id
-    cid = int(callback.data.split(":")[1])
-    if cid not in user_chats.get(user_id, []):
-        await callback.answer("Чат не найден", show_alert=True)
-        return
-
-    c = chats[cid]
-    user_active[user_id] = cid
-    c["unread"] = 0
-    await safe_send(callback.message.chat.id, f"💬 <b>{title(c)}</b>\n\n{render_history(c)}", reply_markup=main_keyboard)
-    await callback.answer()
-
-
-@dp.callback_query(F.data == "new")
-async def cb_new(callback: types.CallbackQuery):
-    user_id = callback.from_user.id
-    if user_states.get(user_id) != "READY":
-        await callback.answer("Сначала /start", show_alert=True)
-        return
-    if len(user_chats.get(user_id, [])) >= MAX_CHATS:
-        await callback.answer("Лимит чатов исчерпан.", show_alert=True)
-        return
-
-    await callback.answer()
-    name = callback.from_user.first_name or "друг"
-    await start_ai_chat(user_id, callback.message.chat.id, name, header="➕ <b>Новый чат создан</b>")
-
-
-async def try_match(c: dict, chat_id: int):
-    uid, cid = c["owner"], c["id"]
-
-    # ⚠️ КРИТИЧЕСКИ ВАЖНО: вызываем extract_interests, чтобы получить СЛОВАРЬ {"topic": ..., "interests": ...}
-    info_dict = await ai.extract_interests(user_messages=c["history"], user_id=uid, chat_id=chat_id)
+        interests = await ai.extract_interests(user_messages=c["history"], topic=c["topic"], user_id=uid, chat_id=uid)
+        t0 = time.time()
 
     async with match_lock:
-        if c["type"] != "AI":
+        if c["type"] != "AI" or c["ver"] != ver:
             return False
-
-        waiting_pool[cid] = info_dict  # Сохраняем словарь
-
+        waiting_pool[cid] = {"topic": c["topic"], "interests": interests, "subs": list(c["subs"]), "t": t0}
         candidates = {
-            k: v for k, v in waiting_pool.items()
+            k: dict(v) for k, v in waiting_pool.items()
             if k in chats and chats[k]["type"] == "AI" and (k == cid or chats[k]["owner"] != uid)
         }
-        if len(candidates) < 2:
-            return False
+    if len(candidates) < 2:
+        return False
 
-        best = await ai.find_best_match(target_user_id=cid, waiting_candidates=candidates, chat_id=chat_id)
-        if not best or best not in candidates or best == cid:
-            return False
+    best = await ai.find_best_match(target_user_id=cid, waiting_candidates=candidates, chat_id=uid)
+    if best is None or best == cid:
+        return False
 
-        pc = chats[best]
-        if pc["type"] != "AI" or c["type"] != "AI":
-            return False
+    async with match_lock:
+        pc = chats.get(best)
+        if (not pc or pc["owner"] == uid or pc["type"] != "AI" or c["type"] != "AI" or c["ver"] != ver
+                or best not in waiting_pool or cid not in waiting_pool):
+            return False  # пока ждали модель, кто-то из двоих уже занят
 
         c["type"], pc["type"] = "HUMAN", "HUMAN"
         c["peer"], pc["peer"] = best, cid
         c["avatar"], pc["avatar"] = random.sample(AVATARS, 2)
-        c["history"], pc["history"] = [], []
         c["unread"] = pc["unread"] = 0
+        c["ver"] += 1
+        pc["ver"] += 1
+        clear_msgs(c)
+        clear_msgs(pc)
         waiting_pool.pop(cid, None)
         waiting_pool.pop(best, None)
+        save(c)
+        save(pc)
+        new_chat(uid)               # у каждого появляется свободный ИИ-чат для следующего поиска
+        new_chat(pc["owner"])
+        print(f"[LOG] 🔀 МЭТЧ: чат {cid} (user {uid}) <-> чат {best} (user {pc['owner']})")
 
-        new_chat(uid, "AI")
-        new_chat(pc["owner"], "AI")
-
-        print(f"[LOG] 🔀 МЭТЧ: чат {cid} <-> чат {best}")
-
-        for chat_obj in (c, pc):
-            text = "🔀 <b>Нашёлся собеседник! Общайтесь.</b>"
-            owner = chat_obj["owner"]
-            if user_active.get(owner) == chat_obj["id"]:
-                await safe_send(owner, text, reply_markup=main_keyboard)
-            else:
-                await safe_send(owner, text, reply_markup=open_button(chat_obj["id"]))
-        return True
+    txt = f"🔀 Нашёлся собеседник по теме «{TOPICS.get(pc['topic'], '')}»!"
+    await push(pc["owner"], f"{txt} Это Чат {pc['num']}.")
+    await push(uid, f"{txt} Это Чат {c['num']}.")
+    return True
 
 
-@dp.message()
-async def handle_message(message: types.Message):
-    user_id = message.from_user.id
-    chat_id = message.chat.id
-    text = message.text.strip() if message.text else ""
+async def moderate(c: dict, text: str):
+    """Проверка токсичности в фоне: сообщение уже доставлено, чат закроется, если оно агрессивное."""
+    try:
+        if await ai.check_toxicity(text=text, user_id=c["owner"], chat_id=c["owner"]) and c["type"] == "HUMAN":
+            await close_human_chat(c["id"], "🛡️ Диалог завершён системой безопасности.")
+    except Exception as e:
+        print(f"[ERROR] moderate: {e}")
 
-    if user_id not in user_states:
-        user_states[user_id] = "CAPTCHA"
-        user_chats.setdefault(user_id, [])
-        expr = generate_captcha(user_id)
-        await message.answer(f"Реши пример: <code>{expr} = ?</code>", reply_markup=ReplyKeyboardRemove())
+
+async def send_human(c: dict, text: str):
+    pc = chats.get(c["peer"])
+    if not pc or pc["type"] != "HUMAN":
+        c["type"] = "CLOSED"
+        c["ver"] += 1
+        save(c)
+        return {"notice": "Собеседник недоступен, чат завершён."}
+
+    add_msg(c, "me", text)
+    add_msg(pc, "partner", text)
+    pc["unread"] += 1
+    save(pc)
+    spawn(moderate(c, text))
+    if pc["unread"] == 1:  # первое непрочитанное — напоминаем в Telegram, если приложение закрыто
+        await push(pc["owner"], f"💬 Новое сообщение в Чат {pc['num']}")
+
+
+# ==========================================
+# HTTP API ДЛЯ MINI APP
+# ==========================================
+
+async def h_state(uid, b):
+    c = own_chat(uid, b.get("read"))
+    if c and c["unread"]:
+        c["unread"] = 0
+        save(c)
+
+
+async def h_new(uid, b):
+    if len(user_chats[uid]) >= MAX_CHATS:
+        return {"notice": f"Максимум {MAX_CHATS} чатов. Заверши ненужные."}
+    new_chat(uid)
+
+
+async def h_settings(uid, b):
+    s = cfg_of(uid)
+    if b.get("lang") in LANGS:
+        s["lang"] = b["lang"]
+    if isinstance(b.get("push"), bool):
+        s["push"] = b["push"]
+    db.save_user(uid, s["lang"], s["push"])
+
+
+async def h_topic(uid, b):
+    c, key = own_chat(uid, b.get("chat")), b.get("key")
+    if not c or c["type"] != "AI" or c["topic"] or key not in TOPICS or c["busy"]:
         return
+    c["busy"] = True
+    try:
+        c["topic"] = key
+        save(c)
+        ver = c["ver"]
+        res = await ai.start_topic(topic_key=key, lang=cfg_of(uid)["lang"], user_id=uid, chat_id=uid)
+        if c["ver"] == ver:
+            add_msg(c, "assistant", res["reply"])
+    finally:
+        c["busy"] = False
 
-    if user_states[user_id] == "CAPTCHA":
-        expected = captcha_answers.get(user_id)
-        try:
-            answer = int(text)
-        except ValueError:
-            await message.answer("⚠️ Введи ответ числом.")
-            return
 
-        if answer == expected:
-            user_states[user_id] = "READY"
-            captcha_answers.pop(user_id, None)
-            name = message.from_user.first_name or "друг"
-            await start_ai_chat(user_id, chat_id, name, header="✅ <b>Проверка пройдена!</b>")
-        else:
-            new_expr = generate_captcha(user_id)
-            await message.answer(f"❌ Неправильно. <code>{new_expr} = ?</code>")
+async def h_send(uid, b):
+    c, text = own_chat(uid, b.get("chat")), str(b.get("text") or "").strip()[:2000]
+    if not c or not text or c["type"] == "CLOSED":
         return
-
-    if not text:
-        return
-
-    cid = user_active.get(user_id)
-    if cid is None or cid not in chats:
-        cid = user_active[user_id] = ensure_ai_chat(user_id)
-    c = chats[cid]
-
-    if c["type"] == "CLOSED":
-        await message.answer("🔒 Чат завершён.", reply_markup=chats_markup(user_id))
-        return
-
     if c["type"] == "HUMAN":
-        pc = chats.get(c["peer"])
-        if not pc or pc["type"] != "HUMAN":
-            c["type"] = "CLOSED"
-            user_active[user_id] = ensure_ai_chat(user_id)
-            await message.answer("Собеседник вышел.", reply_markup=main_keyboard)
+        return await send_human(c, text)
+    if c["busy"]:
+        return {"notice": "Подожди, ИИ ещё отвечает на предыдущее сообщение."}
+
+    lang = cfg_of(uid)["lang"]
+    c["busy"] = True
+    try:
+        add_msg(c, "user", text)
+        ver = c["ver"]
+
+        if not c["topic"]:  # тема ещё не выбрана — пробуем понять её из текста
+            res = await ai.start_topic(text=text, lang=lang, user_id=uid, chat_id=uid)
+            if c["ver"] != ver:
+                return
+            if res["topic"]:
+                c["topic"] = res["topic"]
+                save(c)
+            add_msg(c, "assistant", res["reply"])
             return
 
-        pc["history"].append({"role": "partner", "content": text})
-        c["history"].append({"role": "me", "content": text})
+        c["n"] += 1
+        save(c)
+        if c["n"] >= 3 and c["id"] not in waiting_pool and await try_match(c):
+            return
+        if c["type"] != "AI" or c["ver"] != ver:
+            return
 
-        p = pc["owner"]
-        if user_active.get(p) == pc["id"]:
-            await safe_send(p, text, parse_mode=None)
-        else:
-            pc["unread"] += 1
-            if pc["unread"] == 1:
-                await safe_send(p, f"💬 Новое сообщение", reply_markup=open_button(pc["id"]))
+        reply = await ai.get_comfort_response(history=c["history"][:-1], user_text=text,
+                                              user_id=uid, chat_id=uid, lang=lang)
+        if c["ver"] != ver:      # чат сбросили/сматчили, пока модель думала — ответ устарел
+            return
+        if not reply:
+            return {"notice": "ИИ сейчас не отвечает. Попробуй ещё раз чуть позже."}
+        add_msg(c, "assistant", reply)
+    finally:
+        c["busy"] = False
+
+
+async def h_close(uid, b):
+    c = own_chat(uid, b.get("chat"))
+    if not c:
         return
+    if c["type"] == "HUMAN":
+        await close_human_chat(c["id"], "Собеседник завершил диалог.")
+    elif c["type"] == "AI":
+        c["ver"] += 1
+        c["topic"], c["n"], c["subs"] = None, 0, []
+        clear_msgs(c)
+        waiting_pool.pop(c["id"], None)
+        save(c)
 
-    # AI Чат + Мэтчинг
-    c["history"].append({"role": "user", "content": text})
-    user_msg_count = sum(1 for m in c["history"] if m["role"] == "user")
-    print(f"[LOG] 📊 User {user_id} | {title(c)} | Сообщений: {user_msg_count}/3")
 
-    if user_msg_count >= 3 and cid not in waiting_pool:
-        if await try_match(c, chat_id):
-            return
+async def h_subs(uid, b):
+    c, sid = own_chat(uid, b.get("chat")), b.get("sub")
+    ids = {i for g in CATALOG.get(c["topic"], {}).values() for i in g} if c else set()
+    if not c or c["type"] != "AI" or sid not in ids:
+        return
+    was = sid in c["subs"]
+    c["subs"] = [s for s in c["subs"] if s != sid and not (sid.startswith("lvl") and s.startswith("lvl"))]
+    if not was:
+        c["subs"].append(sid)
+    save(c)
+    if c["id"] in waiting_pool:
+        waiting_pool[c["id"]]["subs"] = list(c["subs"])
 
-    if c["type"] == "AI":
-        await bot.send_chat_action(chat_id=chat_id, action="typing")
-        reply = await ai.get_comfort_response(
-            history=c["history"][:-1], user_text=text, user_id=user_id, chat_id=chat_id
-        )
-        c["history"].append({"role": "assistant", "content": reply})
-        if user_active.get(user_id) == cid:
-            await message.answer(html.escape(reply), reply_markup=main_keyboard)
-        else:
-            c["unread"] += 1
-            await safe_send(chat_id, f"💬 Ответ ИИ", reply_markup=open_button(cid))
+
+async def matchmaker():
+    """Раз в 20 секунд перепроверяет тех, кто ждёт: порог подбора со временем снижается."""
+    while True:
+        await asyncio.sleep(20)
+        for cid in list(waiting_pool):
+            c = chats.get(cid)
+            if c and c["type"] == "AI" and not c["busy"]:
+                try:
+                    await try_match(c)
+                except Exception as e:
+                    print(f"[ERROR] matchmaker: {e!r}")
+
+
+HANDLERS = {"state": h_state, "new": h_new, "topic": h_topic, "send": h_send,
+            "close": h_close, "settings": h_settings, "subs": h_subs}
+
+
+def verify_init_data(init_data: str):
+    """Проверка подписи Telegram: возвращает dict пользователя или None."""
+    try:
+        parsed = dict(parse_qsl(init_data, keep_blank_values=True))
+        got_hash = parsed.pop("hash", "")
+        check = "\n".join(f"{k}={v}" for k, v in sorted(parsed.items()))
+        secret = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
+        ok = hmac.compare_digest(hmac.new(secret, check.encode(), hashlib.sha256).hexdigest(), got_hash)
+        if not ok or time.time() - int(parsed.get("auth_date", 0)) > 86400:
+            return None
+        return json.loads(parsed["user"])
+    except Exception:
+        return None
+
+
+def api(fn):
+    async def wrapper(request: web.Request):
+        user = verify_init_data(request.headers.get("X-Init-Data", ""))
+        if not user:
+            return web.json_response({"error": "auth"}, status=401)
+        uid = user["id"]
+        user_seen[uid] = time.time()
+        if not user_chats.get(uid):
+            new_chat(uid)
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        try:
+            extra = await fn(uid, body)
+        except Exception as e:
+            print(f"[ERROR] {fn.__name__}: {e!r}")
+            extra = {"notice": "Что-то пошло не так. Попробуй ещё раз."}
+        return web.json_response({**snapshot(uid), **(extra or {})})
+    return wrapper
+
+
+async def index(request: web.Request):
+    return web.Response(text=INDEX_FILE.read_text(encoding="utf-8"), content_type="text/html",
+                        headers={"Cache-Control": "no-cache"})
+
+
+# ==========================================
+# TELEGRAM-БОТ (только вход в Mini App)
+# ==========================================
+
+@dp.message(CommandStart())
+async def cmd_start(message: types.Message):
+    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🚀 Открыть Social Bridge", web_app=WebAppInfo(url=WEBAPP_URL))]])
+    await message.answer(
+        "👋 <b>Привет!</b> Все чаты живут в приложении, жми кнопку ниже.\n"
+        "Она же всегда доступна слева от поля ввода («Чаты»).",
+        reply_markup=kb,
+    )
 
 
 async def main():
+    restore()
+    db.start()
+    spawn(matchmaker())
+
+    app = web.Application()
+    app.router.add_get("/", index)
+    for name, fn in HANDLERS.items():
+        app.router.add_post(f"/api/{name}", api(fn))
+    runner = web.AppRunner(app)
+    await runner.setup()
+    await web.TCPSite(runner, "0.0.0.0", int(os.getenv("PORT", "8080"))).start()
+
     await bot.delete_webhook(drop_pending_updates=True)
-    print("🤖 Бот успешно запущен и готов к работе!")
-    await dp.start_polling(bot)
+    await bot.set_chat_menu_button(menu_button=MenuButtonWebApp(text="Чаты", web_app=WebAppInfo(url=WEBAPP_URL)))
+    print("🤖 Бот и Mini App запущены!")
+    try:
+        await dp.start_polling(bot)
+    finally:
+        await db.stop()   # дописываем в БД всё, что ещё в очереди
 
 
 if __name__ == "__main__":

@@ -1,26 +1,15 @@
 import time
-import requests
+import urllib.request
+import json
 
-def get_tunnel():
-    print("Создаем туннель через бесплатный облачный сервис...")
-    try:
-        # Используем публичный API для создания быстрого туннеля
-        response = requests.get("https://localtunnel.me/?port=8000")
-        data = response.json()
-        print("\n" + "="*50)
-        print(f"ТВОЯ ССЫЛКА ДЛЯ .env: {data.get('url')}")
-        print("="*50 + "\n")
-    except Exception as e:
-        print(f"Ошибка: {e}")
-        # Запасной вариант через другой публичный сервис
-        try:
-            res = requests.get("https://api.ipify.org?format=json")
-            print(f"Твой IP: {res.json().get('ip')}")
-        except:
-            pass
+print("Проверка локального сервера FastAPI на порту 8000...")
+try:
+    response = urllib.request.urlopen("http://localhost:8000/docs")
+    print(" FastAPI сервер успешно запущен и отвечает!")
+except Exception as e:
+    print(f" ВНИМАНИЕ: FastAPI сервер не отвечает на порту 8000! Ошибка: {e}")
+    print("Убедись, что сначала ты запустил свой бот/сервер (python bot.py в другом окне).")
 
-if __name__ == "__main__":
-    get_tunnel()
-    print("Не закрывай это окно! Нажми Ctrl+C для выхода.")
-    while True:
-        time.sleep(1)
+print("\nЧтобы получить ссылку для Telegram Mini App за 1 секунду:")
+print("1. Скачай крошечную утилиту bore с официального сайта или используй готовый вариант.")
+print("2. Или просто открой в браузере сайт: https://pinggy.io и следуй инструкции.").\tunnel.py

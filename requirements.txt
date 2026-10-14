@@ -1,5 +1,9 @@
+fastapi>=0.100.0
+uvicorn>=0.22.0
+langchain>=0.1.0
+langchain-openai>=0.0.5
+langgraph>=0.0.20
+openai>=1.0.0
+python-dotenv>=1.0.0
 aiogram>=3.0.0
-langchain-openai
-langchain-core
-langgraph
-python-dotenv
+aiohttp

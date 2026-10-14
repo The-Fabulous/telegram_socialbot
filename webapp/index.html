@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Social Bridge</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--bg:#0f1110;--card:#171a18;--line:#262b28;--em:#5fb58a;--tx:#e8e6e1;--mut:#8b918c;--hv:rgba(255,255,255,.05);
+--mf:#1d3a2f;--mb:#2a5242;--tf:#171a18;--tb:#262b28;--mt:#e8e6e1;--tt:#e8e6e1;--bw:1px;--br:10px;
+--top:calc(max(env(safe-area-inset-top,0px),var(--tg-safe-area-inset-top,0px)) + var(--tg-content-safe-area-inset-top,0px));
+--bot:max(env(safe-area-inset-bottom,0px),var(--tg-safe-area-inset-bottom,0px))}
+*{box-sizing:border-box;margin:0;scrollbar-width:none}
+*::-webkit-scrollbar{display:none}
+[hidden]{display:none!important}
+html{font-size:15px}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+body{height:var(--tg-viewport-height,100%);font:1rem/1.55 var(--ff,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif);background:var(--bg);color:var(--tx);display:flex;flex-direction:column}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--em);outline-offset:2px}
+
+/* фон: цвет + узор */
+#bgfx{position:fixed;inset:0;z-index:0;pointer-events:none;background:var(--tint,#0f1110)}
+#bgfx::after{content:"";position:absolute;inset:0;background:var(--pc,#5fb58a);opacity:var(--po,.1);
+-webkit-mask-image:var(--pat,none);mask-image:var(--pat,none);-webkit-mask-size:var(--ps,auto);mask-size:var(--ps,auto)}
+header,main#home,.chats{position:relative;z-index:1}
+
+/* переходы */
+@keyframes vin{from{opacity:0;transform:translateY(.8rem)}to{opacity:1;transform:none}}
+.enter{animation:vin .3s ease both}
+
+header{display:flex;align-items:center;gap:1.1rem;height:calc(3.5rem + var(--top));padding:var(--top) 1.2rem 0;border-bottom:1px solid var(--line);flex-shrink:0;background:rgba(15,17,16,.78)}
+.logo{font:700 1.35rem Georgia,"Times New Roman",serif;white-space:nowrap}
+.logo span{color:var(--em)}
+nav{display:flex;gap:1.2rem;margin-left:auto;align-items:center}
+nav button{padding:.45rem .1rem;color:var(--mut);border-bottom:2px solid transparent;font-size:1.05rem;white-space:nowrap}
+nav button.on{color:var(--tx);border-color:var(--em)}
+nav button:hover{color:var(--tx)}
+#gear .i{display:none;font-size:1.3rem}
+.badge{color:var(--em);font-size:.9rem;font-weight:700}
+
+.btn{padding:.75rem 1.3rem;border-radius:.5rem;font-weight:600;background:var(--em);color:#0b1410;border:1px solid var(--em);min-height:2.7rem}
+.btn:hover{filter:brightness(1.08)}
+.btn.out{background:none;color:var(--tx);border-color:var(--line)}
+.btn.out:hover{border-color:var(--em)}
+.btn.sm{padding:.5rem .9rem;min-height:2.3rem;font-size:.95rem}
+.link{color:var(--mut);text-decoration:underline;text-underline-offset:3px;padding:.7rem .3rem}
+.link:hover{color:var(--tx)}
+
+main#home{flex:1;overflow-y:auto}
+.wrap{max-width:46rem;margin:0 auto;padding:0 1.4rem calc(3.5rem + var(--bot))}
+.hero{padding:3.8rem 0 1.8rem}
+.hero h1{font:700 clamp(1.9rem,6vw,2.9rem)/1.18 Georgia,"Times New Roman",serif;letter-spacing:-.01em}
+.hero p{margin:1.1rem 0 1.6rem;color:var(--mut);font-size:1.08rem;max-width:32rem}
+.cta{display:flex;align-items:center;gap:.9rem;flex-wrap:wrap}
+h2.s{font:700 1.35rem Georgia,"Times New Roman",serif;margin:2.5rem 0 .8rem}
+.steps{list-style:none;padding:0;border-top:1px solid var(--line);counter-reset:n}
+.steps li{display:grid;grid-template-columns:2.4rem 1fr;column-gap:.5rem;padding:1.05rem 0;border-bottom:1px solid var(--line)}
+.steps li:before{content:counter(n,decimal-leading-zero);counter-increment:n;color:var(--em);grid-row:span 2;font-variant-numeric:tabular-nums}
+.steps h3{font-size:1.07rem}
+.steps p{color:var(--mut);font-size:.95rem}
+.row{display:flex;align-items:center;justify-content:space-between;padding:.8rem .3rem;border-bottom:1px solid var(--line);font-size:1.05rem}
+.row:hover{background:var(--hv)}
+.row .btn{border:0;background:none;color:var(--em);padding:.3rem 0;min-height:0}
+.row .btn:after{content:" →"}
+
+.chats{display:grid;grid-template-columns:20rem 1fr;flex:1;overflow:hidden}
+.scrim{display:none}
+.side{border-right:1px solid var(--line);overflow-y:auto;display:flex;flex-direction:column;background:rgba(15,17,16,.78)}
+.side .btn{margin:.8rem 1rem}
+.chat{display:flex;gap:.8rem;align-items:center;width:100%;text-align:left;padding:.75rem 1rem;border-bottom:1px solid var(--line)}
+.chat:hover{background:var(--hv)}
+.chat.on{background:var(--card);box-shadow:inset 3px 0 0 var(--em)}
+.av{flex:none;width:2.8rem;height:2.8rem;border-radius:.55rem;display:grid;place-items:center;font-size:1.4rem;background:var(--card);border:1px solid var(--line)}
+.av.t{border-color:var(--em)}
+.chat .tt{flex:1;min-width:0}
+.chat b{display:block;font-weight:600}
+.chat small{display:block;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.9rem}
+.main{display:flex;flex-direction:column;min-width:0;height:100%}
+.head{display:flex;align-items:center;gap:.7rem;padding:.7rem 1rem;border-bottom:1px solid var(--line);flex-shrink:0;background:rgba(15,17,16,.78)}
+.head .ttl{flex:1;min-width:0}
+.head small{display:block;color:var(--mut)}
+.menu{display:none;position:relative;font-size:1.5rem;line-height:1;padding:.3rem .55rem .3rem 0;color:var(--em)}
+.dot{position:absolute;top:0;right:.1rem;width:.55rem;height:.55rem;border-radius:50%;background:var(--em)}
+.act{color:var(--mut);padding:.5rem .7rem}
+.act:hover{color:var(--tx)}
+.msgs{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.4rem}
+.m{max-width:80%;padding:.6rem .85rem;border-radius:var(--br);background:var(--tf);color:var(--tt);border:var(--bw) solid var(--tb);white-space:pre-wrap;overflow-wrap:anywhere}
+.m.me{align-self:flex-end;background:var(--mf);color:var(--mt);border-color:var(--mb)}
+.hint{margin:auto;text-align:center;color:var(--mut);max-width:23rem;background:rgba(15,17,16,.72);padding:1rem;border-radius:.7rem}
+.hint b{color:var(--tx)}
+.chips{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center;margin-top:1rem}
+.chips button{padding:.5rem .85rem;border-radius:.45rem;background:var(--card);border:1px solid var(--line);color:var(--tx)}
+.chips button:hover{border-color:var(--em)}
+.dots{color:var(--mut);padding:.3rem .8rem}
+.bar{display:flex;gap:.55rem;padding:.7rem 1rem calc(.7rem + var(--bot));border-top:1px solid var(--line);flex-shrink:0;background:rgba(15,17,16,.78)}
+.bar input{flex:1;min-width:0;padding:.7rem .95rem;border-radius:.5rem;border:1px solid var(--line);background:var(--card);color:var(--tx);font:inherit}
+.bar input:focus{border-color:var(--em)}
+.bar :disabled{opacity:.45}
+
+/* боковая панель настроек */
+.pscrim{position:fixed;inset:0;z-index:55;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .25s}
+.pscrim.open{opacity:1;pointer-events:auto}
+.panel{position:fixed;top:0;right:0;bottom:0;width:min(100%,27rem);z-index:60;background:var(--card);border-left:1px solid var(--line);
+display:flex;flex-direction:column;padding-top:var(--top);transform:translateX(102%);visibility:hidden;transition:transform .26s ease,visibility 0s .26s}
+.panel.open{transform:none;visibility:visible;transition:transform .26s ease,visibility 0s}
+.phead{display:flex;justify-content:space-between;align-items:center;padding:.9rem 1.2rem;border-bottom:1px solid var(--line)}
+.phead h3{font:700 1.35rem Georgia,"Times New Roman",serif}
+.x{font-size:1.4rem;padding:.3rem .65rem;color:var(--mut)}
+.x:hover{color:var(--tx)}
+.pbody{overflow-y:auto;padding:0 1.2rem calc(1.4rem + var(--bot));flex:1}
+.pbody h4{font-size:.8rem;color:var(--mut);text-transform:uppercase;letter-spacing:.07em;margin:1.5rem 0 .6rem}
+.opts{display:flex;flex-wrap:wrap;gap:.5rem}
+.opts button{padding:.55rem .85rem;border-radius:.45rem;border:1px solid var(--line);background:var(--bg)}
+.opts button:hover{border-color:var(--mut)}
+.opts button.on{border-color:var(--em);color:var(--em)}
+.opts .sw{width:2.6rem;height:2.6rem;padding:0;border-radius:50%;border-width:2px}
+.rg,.cl,.tg{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.55rem 0}
+.rg input{flex:0 0 55%;accent-color:var(--em)}
+.cl input{width:3.2rem;height:2.3rem;border:1px solid var(--line);border-radius:.4rem;background:none;padding:2px;cursor:pointer}
+.tg input{appearance:none;-webkit-appearance:none;width:2.9rem;height:1.65rem;border-radius:1rem;background:var(--line);position:relative;cursor:pointer;transition:background .2s;flex:none}
+.tg input::after{content:"";position:absolute;top:.2rem;left:.2rem;width:1.25rem;height:1.25rem;border-radius:50%;background:#fff;transition:transform .2s}
+.tg input:checked{background:var(--em)}
+.tg input:checked::after{transform:translateX(1.25rem)}
+.pbody select{width:100%;padding:.75rem .8rem;border-radius:.45rem;background:var(--bg);color:var(--tx);border:1px solid var(--line);font:inherit}
+.prev{display:flex;flex-direction:column;gap:.4rem;padding:.8rem;border-radius:.6rem;background:var(--bg);margin-bottom:.8rem}
+.pbody .btn.out{width:100%;margin-top:1.4rem}
+
+/* всплывающие уведомления */
+#toasts{position:fixed;z-index:70;left:50%;transform:translateX(-50%);top:calc(var(--top) + .7rem);display:flex;flex-direction:column;gap:.5rem;width:min(92vw,25rem);pointer-events:none}
+.toast{pointer-events:auto;background:var(--card);border:1px solid var(--em);border-radius:.65rem;padding:.7rem .95rem;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.45);animation:vin .25s ease both}
+.toast b{display:block}
+.toast small{display:block;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* подтемы, шрифты заголовков */
+.gt{margin:.8rem 0 .1rem;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em}
+.chips button.on{border-color:var(--em);color:var(--em)}
+.logo,.hero h1,h2.s,.phead h3{font-family:var(--fh,Georgia,"Times New Roman",serif)}
+
+/* телефон: боковая панель чатов выезжает слева */
+@media(max-width:720px){
+.chats{grid-template-columns:1fr}
+.side{position:absolute;top:0;bottom:0;left:0;width:min(84vw,20rem);z-index:20;background:var(--bg);transform:translateX(-102%);transition:transform .22s ease}
+.chats.drawer .side{transform:none}
+.scrim{position:absolute;inset:0;z-index:15;background:rgba(0,0,0,.55)}
+.chats.drawer .scrim{display:block}
+.menu{display:block}}
+@media(max-width:560px){#gear .l{display:none}#gear .i{display:inline}}
+@media(max-width:420px){header{gap:.7rem;padding-left:.8rem;padding-right:.8rem}nav{gap:.8rem}.logo{font-size:1.2rem}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div id="bgfx"></div>
+<header>
+  <div class="logo">Social Bridge<span>.</span></div>
+  <nav>
+    <button id="nv-home" class="on">Главная</button>
+    <button id="nv-chats">Чаты</button>
+    <button id="gear" aria-label="Настройки"><span class="l">Настройки</span><span class="i">⚙</span></button>
+  </nav>
+</header>
+
+<main id="home">
+  <div class="wrap">
+    <section class="hero">
+      <h1>Поговори с ИИ про своё, а потом с человеком, которому это тоже интересно</h1>
+      <p>Выбираешь тему, пишешь пару сообщений, и мы находим тебе живого собеседника с похожими интересами.</p>
+      <div class="cta">
+        <button class="btn" id="go">Начать</button>
+        <button class="link" id="how">Как это работает</button>
+      </div>
+    </section>
+
+    <h2 class="s">Как это работает</h2>
+    <ol class="steps" id="features">
+      <li><h3>Выбираешь тему</h3><p>Аниме, футбол, игры, музыка или что-то своё.</p></li>
+      <li><h3>Болтаешь с ИИ</h3><p>Хватает трёх сообщений, чтобы понять, что тебе интересно.</p></li>
+      <li><h3>Получаешь собеседника</h3><p>Ищем среди тех, кто выбрал ту же тему.</p></li>
+      <li><h3>Переключаешься между чатами</h3><p>Каждый собеседник живёт в своём чате, новый чат с ИИ всегда под рукой.</p></li>
+    </ol>
+
+    <h2 class="s">Начни с темы</h2>
+    <div id="topics"></div>
+  </div>
+</main>
+
+<section class="chats" id="chats" hidden>
+  <aside class="side">
+    <button class="btn" id="new">Новый чат с ИИ</button>
+    <div id="list"></div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+  <div class="main" id="main" hidden>
+    <div class="head">
+      <button class="menu" id="menu" aria-label="Список чатов">☰<span class="dot" id="mdot" hidden></span></button>
+      <div class="av" id="hav"></div>
+      <div class="ttl"><b id="hti"></b><small id="hsu"></small></div>
+      <button class="act" id="end"></button>
+    </div>
+    <div class="msgs" id="msgs"></div>
+    <div class="bar">
+      <input id="in" placeholder="Сообщение" autocomplete="off">
+      <button class="btn" id="send">Отправить</button>
+    </div>
+  </div>
+</section>
+
+<div class="pscrim" id="pscrim"></div>
+<aside class="panel" id="panel" aria-label="Настройки"></aside>
+<div id="toasts" role="status" aria-live="polite"></div>
+
+<script>
+const tg = Telegram.WebApp; tg.ready(); tg.expand();
+try { tg.setHeaderColor('#0f1110'); tg.setBackgroundColor('#0f1110'); } catch (e) {}
+try { tg.disableVerticalSwipes(); } catch (e) {}
+try { if (tg.isVersionAtLeast('8.0') && !tg.isFullscreen) tg.requestFullscreen(); } catch (e) {}
+
+const $ = s => document.querySelector(s);
+const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const mq = matchMedia('(max-width:720px)');
+const enter = el => { el.classList.remove('enter'); void el.offsetWidth; el.classList.add('enter'); };
+
+/* =============== настройки внешнего вида (хранятся на устройстве) =============== */
+const LS = 'sb-settings-v2';
+const DEF = {p: 'snow', t: 'ocean', o: 0.2,
+  mf: '#1d3a2f', mb: '#2a5242', tf: '#171a18', tb: '#262b28', bw: 1, br: 10,
+  ui: innerWidth >= 900 ? 120 : 100, toast: true, haptic: true, sound: false, ff: 'sys'};
+let cfg = {...DEF};
+try { Object.assign(cfg, JSON.parse(localStorage.getItem(LS) || '{}')); } catch (e) {}
+const save = () => { try { localStorage.setItem(LS, JSON.stringify(cfg)); } catch (e) {} };
+
+const FONTS = {
+  sys:   ['Системный', 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif'],
+  serif: ['С засечками', 'Georgia,"Times New Roman",serif'],
+  round: ['Округлый', 'ui-rounded,Nunito,"Varela Round","Trebuchet MS",sans-serif'],
+  clean: ['Строгий', '"Helvetica Neue",Arial,sans-serif'],
+  mono:  ['Моноширинный', 'ui-monospace,"Cascadia Code",Consolas,monospace'],
+  hand:  ['Рукописный', '"Segoe Print","Bradley Hand","Comic Sans MS",cursive'],
+};
+
+const PRESETS = [
+  {n: 'Изумруд', mf: '#1d3a2f', mb: '#2a5242', tf: '#171a18', tb: '#262b28'},
+  {n: 'Океан',   mf: '#17364d', mb: '#2a5878', tf: '#151b20', tb: '#26323a'},
+  {n: 'Закат',   mf: '#3a2150', mb: '#5a3a78', tf: '#1a171d', tb: '#2f2938'},
+  {n: 'Янтарь',  mf: '#4a3414', mb: '#75551f', tf: '#1a1815', tb: '#302b22'},
+  {n: 'Светлый', mf: '#cfeede', mb: '#9ccfb4', tf: '#f1f2f0', tb: '#d8dbd6'},
+];
+
+/* ---------- узоры в стиле обоев Telegram ---------- */
+const X = 'xmlns="http://www.w3.org/2000/svg"';
+const rng = seed => () => {
+  seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+  let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+  return ((t ^ t >>> 14) >>> 0) / 4294967296;
+};
+const poly = (n, ro, ri) => Array.from({length: n * 2}, (_, i) => {
+  const r = i % 2 ? ri : ro, a = i * Math.PI / n - Math.PI / 2;
+  return (i ? 'L' : 'M') + (r * Math.cos(a)).toFixed(1) + ' ' + (r * Math.sin(a)).toFixed(1);
+}).join('') + 'Z';
+const arms = d => [0, 60, 120, 180, 240, 300].map(a => `<g transform="rotate(${a})">${d}</g>`).join('');
+const P = d => `<path d="${d}"/>`;
+
+/* r — примерный радиус, fill — залитая, tilt — макс. наклон (иначе любой поворот) */
+const G = {
+  flake1: {r: 16, svg: arms(P('M0 0V-15M0-4L-4-8M0-4L4-8M0-8L-4.5-12M0-8L4.5-12M0-11.5L-2.5-14M0-11.5L2.5-14'))},
+  flake2: {r: 16, svg: P('M0-3L2.6-1.5V1.5L0 3L-2.6 1.5V-1.5Z') + arms(P('M0-3V-8M0-8L-3.2-11L0-14L3.2-11ZM0-14V-16'))},
+  flake3: {r: 16, svg: arms(P('M0 0V-12M0-5L-4-8M0-5L4-8M0-8.5L-3-11M0-8.5L3-11') + '<circle cy="-14" r="2"/>')},
+  flake4: {r: 16, svg: arms(P('M0 0V-9M0-6L-4-6M0-6L4-6M0-9L-2-12M0-9L2-12')) + '<circle r="13.5" stroke-dasharray="0.1 3.2"/>'},
+  flake5: {r: 16, svg: '<circle r="4.5"/><circle r="8"/>' + arms(P('M0-8V-15M0-12L-2.5-14.5M0-12L2.5-14.5'))},
+  flake6: {r: 16, svg: arms(P('M0-3L2.6-7L0-11L-2.6-7ZM0-11V-15M0-6V0'))},
+  mini:   {r: 8,  svg: arms(P('M0 0V-7M0-3L-2-5M0-3L2-5'))},
+
+  birch:  {r: 15, svg: P('M0-12C8-6 8 6 0 11C-8 6-8-6 0-12ZM0-12V15M0-4L4.5-7.5M0-4L-4.5-7.5M0 2L5-1.5M0 2L-5-1.5')},
+  maple:  {r: 16, svg: P('M0-13L2.8-7L7-9.5L6-3.5L12-4L7.5 1L10 6L3.5 5L1.2 11H-1.2L-3.5 5L-10 6L-7.5 1L-12-4L-6-3.5L-7-9.5L-2.8-7ZM0 11V16M0 7V-6M0 3L-6-1M0 3L6-1M0-2L-3.5-6M0-2L3.5-6')},
+  oak:    {r: 16, svg: P('M0-11C3-10 4-8 5-7C8-7 8-4 6-3C9-1 8 2 5 2C7 5 4 7 2 6C2 8 1 10 0 11C-1 10-2 8-2 6C-4 7-7 5-5 2C-8 2-9-1-6-3C-8-4-8-7-5-7C-4-8-3-10 0-11ZM0-8V15M0-3L3.5-5M0-3L-3.5-5M0 2L4 0M0 2L-4 0')},
+  ginkgo: {r: 14, svg: P('M0 4C-10 1-13-7-9-10Q-4-6 0-10Q4-6 9-10C13-7 10 1 0 4ZM0 4V13M0 4V-7M0 3L-6-5M0 3L6-5')},
+  acorn:  {r: 10, svg: P('M-5.5-2H5.5C5.5 5 2.5 9 0 10.5C-2.5 9-5.5 5-5.5-2ZM-6.5-2Q0-9 6.5-2ZM0-7V-10')},
+
+  star5:  {r: 13, svg: P(poly(5, 12, 5.2))},
+  star6:  {r: 13, svg: P(poly(6, 12, 6.4))},
+  star8:  {r: 13, svg: P(poly(8, 12, 5.5))},
+  spark:  {r: 14, svg: P('M0-13Q2-2 13 0Q2 2 0 13Q-2 2-13 0Q-2-2 0-13Z')},
+  tstar:  {r: 6,  fill: 1, svg: P('M0-5Q1-1 5 0Q1 1 0 5Q-1 1-5 0Q-1-1 0-5Z')},
+
+  drop:   {r: 14, tilt: 20, svg: P('M0-13C6-5 9 0 9 5A9 9 0 0 1-9 5C-9 0-6-5 0-13Z') + P('M-4.5 5Q-4.5 8.5-1.5 9.5')},
+  drop2:  {r: 14, tilt: 20, svg: P('M0-13C6-5 9 0 9 5A9 9 0 0 1-9 5C-9 0-6-5 0-13Z') + P('M0-6C3-2 4.5 1 4.5 3.5A4.5 4.5 0 0 1-4.5 3.5C-4.5 1-3-2 0-6Z')},
+  ripple: {r: 14, svg: '<circle r="4"/><circle r="8.5"/><circle r="13" stroke-dasharray="3 3"/>'},
+  bubble: {r: 10, svg: '<circle r="9"/>' + P('M-5-3Q-4-6-1-6.5')},
+  tdrop:  {r: 5,  tilt: 20, fill: 1, svg: P('M0-5C3-1 4 1.5 4 3A4 4 0 0 1-4 3C-4 1.5-3-1 0-5Z')},
+
+  diamond:{r: 6,  svg: P('M0-5L3.6 0L0 5L-3.6 0Z')},
+  ring:   {r: 5,  svg: '<circle r="3.2"/>'},
+  dot:    {r: 2,  fill: 1, svg: '<circle r="1.7"/>'},
+};
+
+/* случайная (но повторяемая) плотная расстановка: сначала крупные фигуры, потом средние, мелкие и «заполнители» */
+function scatter({main, fill, seed, big = [2.1, 3.2], mid = [1.4, 2], small = [0.85, 1.25]}) {
+  const R = rng(seed), W = 560, placed = [], items = [];
+  const pick = a => G[a[Math.floor(R() * a.length)]];
+  const tor = (a, b) => { const d = Math.abs(a - b); return Math.min(d, W - d); };
+  const pass = (list, [lo, hi], tries, gap) => {
+    for (let i = 0; i < tries; i++) {
+      const g = pick(list), s = lo + R() * (hi - lo), x = R() * W, y = R() * W, r = g.r * s;
+      if (!placed.every(([px, py, pr]) => Math.hypot(tor(x, px), tor(y, py)) > pr + r + gap)) continue;
+      placed.push([x, y, r]);
+      const rot = g.tilt != null ? (R() * 2 - 1) * g.tilt : R() * 360;
+      for (const dx of [-W, 0, W]) for (const dy of [-W, 0, W]) {   // копии у краёв плитки — шов не виден
+        const px = x + dx, py = y + dy;
+        if (px > -r && px < W + r && py > -r && py < W + r)
+          items.push(`<g transform="translate(${px.toFixed(1)} ${py.toFixed(1)}) rotate(${rot.toFixed(0)}) scale(${s.toFixed(2)})"` +
+            (g.fill ? ' fill="black" stroke="none"' : ` stroke-width="${(1.5 / s).toFixed(2)}"`) + `>${g.svg}</g>`);
+      }
+    }
+  };
+  pass(main, big, 700, 5); pass(main, mid, 900, 4); pass(main, small, 900, 4); pass(fill, [0.8, 1.5], 1500, 3);
+  return {size: `${W}px ${W}px`,
+    svg: `<svg ${X} width="${W}" height="${W}" fill="none" stroke="black" stroke-linecap="round" stroke-linejoin="round">${items.join('')}</svg>`};
+}
+
+const PATS = {
+  none:   {name: 'Без узора'},
+  snow:   {name: 'Снежинки', main: ['flake1', 'flake2', 'flake3', 'flake4', 'flake5', 'flake6'], fill: ['dot', 'mini', 'diamond', 'ring'], seed: 11},
+  leaves: {name: 'Листья',   main: ['birch', 'maple', 'oak', 'ginkgo', 'maple', 'birch'], fill: ['acorn', 'dot', 'ring'], seed: 23, big: [2, 2.9], mid: [1.3, 1.9]},
+  stars:  {name: 'Звёзды',   main: ['star5', 'spark', 'star8', 'star6', 'spark'], fill: ['tstar', 'dot', 'ring', 'diamond'], seed: 37, big: [2, 2.9], mid: [1.3, 1.9]},
+  drops:  {name: 'Капли',    main: ['drop', 'drop2', 'ripple', 'bubble', 'drop'], fill: ['tdrop', 'dot', 'ring'], seed: 49, big: [2, 2.9], mid: [1.3, 1.9]},
+};
+const patCache = {};
+const getPat = k => {
+  if (!PATS[k] || !PATS[k].main) return null;
+  return patCache[k] || (patCache[k] = scatter(PATS[k]));
+};
+
+const TINTS = {
+  coal:   {name: 'Уголь',  bg: '#0f1110', pc: '#8b918c'},
+  forest: {name: 'Лес',    bg: 'radial-gradient(120% 90% at 0% 0%,#15331f 0%,#0f1110 62%)', pc: '#5fb58a'},
+  ocean:  {name: 'Океан',  bg: 'radial-gradient(120% 90% at 100% 0%,#10283a 0%,#0f1110 62%)', pc: '#5fa8d6'},
+  dusk:   {name: 'Закат',  bg: 'linear-gradient(160deg,#2a1636 0%,#0f1110 60%)', pc: '#b085d9'},
+  amber:  {name: 'Янтарь', bg: 'radial-gradient(120% 90% at 100% 0%,#33220f 0%,#0f1110 62%)', pc: '#d9a85f'},
+};
+
+/* проверка значений из хранилища */
+const num = (v, lo, hi, d) => Math.min(hi, Math.max(lo, Number.isFinite(+v) ? +v : d));
+const hex = (v, d) => /^#[0-9a-f]{6}$/i.test(v) ? v : d;
+if (!PATS[cfg.p]) cfg.p = DEF.p;
+if (!TINTS[cfg.t]) cfg.t = DEF.t;
+if (!FONTS[cfg.ff]) cfg.ff = 'sys';
+cfg.o = num(cfg.o, 0.03, 0.3, DEF.o); cfg.bw = num(cfg.bw, 0, 4, 1); cfg.br = num(cfg.br, 0, 24, 10); cfg.ui = num(cfg.ui, 90, 150, DEF.ui);
+for (const k of ['mf', 'mb', 'tf', 'tb']) cfg[k] = hex(cfg[k], DEF[k]);
+
+const lum = h => { const n = parseInt(h.slice(1), 16); return (0.299 * (n >> 16) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255; };
+const ink = h => lum(h) > 0.6 ? '#10130f' : '#eef0ec';
+
+function applyAll() {
+  const st = document.documentElement.style, pat = getPat(cfg.p), t = TINTS[cfg.t];
+  st.fontSize = (15 * cfg.ui / 100) + 'px';
+  st.setProperty('--tint', t.bg);
+  st.setProperty('--pc', t.pc);
+  st.setProperty('--po', pat ? cfg.o : 0);
+  st.setProperty('--pat', pat ? `url("data:image/svg+xml,${encodeURIComponent(pat.svg)}")` : 'none');
+  st.setProperty('--ps', pat ? pat.size : 'auto');
+  st.setProperty('--mf', cfg.mf); st.setProperty('--mb', cfg.mb);
+  st.setProperty('--tf', cfg.tf); st.setProperty('--tb', cfg.tb);
+  st.setProperty('--mt', ink(cfg.mf)); st.setProperty('--tt', ink(cfg.tf));
+  st.setProperty('--bw', cfg.bw + 'px'); st.setProperty('--br', cfg.br + 'px');
+  st.setProperty('--ff', FONTS[cfg.ff][1]);
+  st.setProperty('--fh', cfg.ff === 'sys' ? 'Georgia,"Times New Roman",serif' : FONTS[cfg.ff][1]);
+  save();
+}
+
+/* =============== панель настроек =============== */
+function panelHtml() {
+  const st = S.settings || {lang: 'auto', push: true}, langs = S.langs || {auto: 'Авто'};
+  const tgl = (k, label, v) => `<label class="tg"><span>${label}</span><input type="checkbox" data-k="${k}" ${v ? 'checked' : ''}></label>`;
+  const col = (k, label) => `<label class="cl"><span>${label}</span><input type="color" data-c="${k}" value="${cfg[k]}"></label>`;
+  const range = (k, label, min, max, step) => `<label class="rg"><span>${label}</span><input type="range" data-r="${k}" min="${min}" max="${max}" step="${step}" value="${cfg[k]}"></label>`;
+  const same = p => p.mf === cfg.mf && p.mb === cfg.mb && p.tf === cfg.tf && p.tb === cfg.tb;
+  return `<div class="phead"><h3>Настройки</h3><button class="x" id="pclose" aria-label="Закрыть">✕</button></div>
+  <div class="pbody">
+    <h4>Фон</h4>
+    <div class="opts">${Object.entries(PATS).map(([k, p]) => `<button data-p="${k}" class="${cfg.p === k ? 'on' : ''}">${p.name}</button>`).join('')}</div>
+    <div class="opts" style="margin-top:.7rem">${Object.entries(TINTS).map(([k, t]) =>
+      `<button class="sw ${cfg.t === k ? 'on' : ''}" data-t="${k}" style="background:${t.bg}" aria-label="${t.name}"></button>`).join('')}</div>
+    ${range('o', 'Яркость узора', 0.03, 0.3, 0.01)}
+
+    <h4>Сообщения</h4>
+    <div class="prev"><div class="m">Привет! Как дела?</div><div class="m me">Всё отлично, а у тебя?</div></div>
+    <div class="opts">${PRESETS.map((p, i) => `<button data-pr="${i}" class="${same(p) ? 'on' : ''}">${p.n}</button>`).join('')}</div>
+    ${col('mf', 'Мои: заливка')}${col('mb', 'Мои: обводка')}
+    ${col('tf', 'Собеседник: заливка')}${col('tb', 'Собеседник: обводка')}
+    ${range('bw', 'Толщина обводки', 0, 4, 1)}${range('br', 'Скругление', 0, 24, 1)}
+
+    <h4>Уведомления</h4>
+    ${tgl('toast', 'Всплывающие в приложении', cfg.toast)}
+    ${tgl('haptic', 'Вибрация', cfg.haptic)}
+    ${tgl('sound', 'Звук', cfg.sound)}
+    ${tgl('push', 'В Telegram, когда приложение закрыто', st.push)}
+
+    <h4>Язык ИИ</h4>
+    <select data-s="lang">${Object.entries(langs).map(([k, l]) => `<option value="${k}" ${st.lang === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
+
+    <h4>Шрифт</h4>
+    <select data-f="ff">${Object.entries(FONTS).map(([k, [n]]) => `<option value="${k}" ${cfg.ff === k ? 'selected' : ''}>${n}</option>`).join('')}</select>
+    <div class="prev" style="margin-top:.7rem"><div class="m">Так выглядит текст сообщений</div></div>
+
+    <h4>Интерфейс</h4>
+    ${range('ui', 'Масштаб, %', 90, 150, 5)}
+    <button class="btn out" id="reset">Сбросить внешний вид</button>
+  </div>`;
+}
+function refreshPanel() {
+  const body = $('#panel .pbody'), y = body ? body.scrollTop : 0;
+  $('#panel').innerHTML = panelHtml();
+  $('#panel .pbody').scrollTop = y;
+}
+function openPanel() { $('#panel').innerHTML = panelHtml(); $('#panel').classList.add('open'); $('#pscrim').classList.add('open'); }
+function closePanel() { $('#panel').classList.remove('open'); $('#pscrim').classList.remove('open'); }
+
+$('#gear').onclick = openPanel;
+$('#pscrim').onclick = closePanel;
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+
+$('#panel').addEventListener('click', e => {
+  const t = e.target;
+  if (t.closest('#pclose')) return closePanel();
+  const p = t.closest('[data-p]'), tn = t.closest('[data-t]'), pr = t.closest('[data-pr]');
+  if (p) { cfg.p = p.dataset.p; applyAll(); refreshPanel(); }
+  else if (tn) { cfg.t = tn.dataset.t; applyAll(); refreshPanel(); }
+  else if (pr) { const {mf, mb, tf, tb} = PRESETS[+pr.dataset.pr]; Object.assign(cfg, {mf, mb, tf, tb}); applyAll(); refreshPanel(); }
+  else if (t.closest('#reset'))
+    tg.showConfirm('Сбросить фон, цвета сообщений, шрифт и масштаб?', ok => { if (ok) { Object.assign(cfg, DEF); applyAll(); refreshPanel(); } });
+});
+$('#panel').addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.r) { cfg[t.dataset.r] = +t.value; applyAll(); }
+  else if (t.dataset.c) { cfg[t.dataset.c] = t.value; applyAll(); }
+});
+$('#panel').addEventListener('change', e => {
+  const t = e.target, k = t.dataset.k;
+  if (k === 'push') call('settings', {push: t.checked}).catch(() => {});
+  else if (k) { cfg[k] = t.checked; save(); if (k === 'sound' && t.checked) beep(); }
+  else if (t.dataset.f) { cfg.ff = t.value; applyAll(); refreshPanel(); }
+  else if (t.dataset.s === 'lang') call('settings', {lang: t.value}).catch(() => {});
+});
+
+/* =============== уведомления =============== */
+let ac;
+function beep() {
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.frequency.value = 880; g.gain.value = 0.05; o.connect(g); g.connect(ac.destination);
+    o.start(); o.stop(ac.currentTime + 0.12);
+  } catch (e) {}
+}
+function toast(id, title, text) {
+  if (cfg.toast) {
+    const box = $('#toasts'), el = document.createElement('div');
+    el.className = 'toast';
+    el.innerHTML = `<b>${esc(title)}</b><small>${esc(text)}</small>`;
+    el.onclick = () => { el.remove(); show('chats'); open(id); };
+    box.append(el);
+    while (box.children.length > 3) box.firstChild.remove();
+    setTimeout(() => el.remove(), 5500);
+  }
+  if (cfg.haptic) { try { tg.HapticFeedback.notificationOccurred('success'); } catch (e) {} }
+  if (cfg.sound) beep();
+}
+function notify(old, cur) {
+  const prev = new Map(old.chats.map(c => [c.id, c]));
+  for (const c of cur.chats) {
+    const o = prev.get(c.id);
+    if (!o || (view === 'chats' && active === c.id) || busy.has(c.id)) continue;   // этот чат сейчас открыт или это моё действие
+    const last = c.messages.at(-1);
+    if (c.unread > o.unread) toast(c.id, `Чат ${c.num}`, last ? last.text.slice(0, 90) : 'Новое сообщение');
+    else if (o.type === 'AI' && c.type === 'HUMAN') toast(c.id, 'Нашёлся собеседник', `Чат ${c.num} · ${cur.topics[c.topic] || ''}`);
+    else if (o.type === 'HUMAN' && c.type === 'CLOSED') toast(c.id, 'Чат завершён', `Чат ${c.num}`);
+  }
+}
+
+/* =============== чаты =============== */
+let S = {chats: [], topics: {}}, active = null, view = 'home', busy = new Set(), lastKey = '', topicsKey = '', loaded = false;
+
+async function call(path, body = {}) {
+  const r = await fetch('/api/' + path, {method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-Init-Data': tg.initData}, body: JSON.stringify(body)});
+  if (!r.ok) throw new Error(r.status);
+  const old = S;
+  S = await r.json();
+  if (loaded) notify(old, S);
+  loaded = true;
+  if (S.notice) tg.showAlert(S.notice);
+  render();
+}
+
+function show(v) {
+  const was = view;
+  view = v; lastKey = '';
+  $('#home').hidden = v !== 'home';
+  $('#chats').hidden = v !== 'chats';
+  $('#nv-home').classList.toggle('on', v === 'home');
+  $('#nv-chats').classList.toggle('on', v === 'chats');
+  if (was !== v) enter(v === 'home' ? $('#home') : $('#chats'));
+  render();
+}
+
+const icon = c => c.type === 'CLOSED' ? '🔒' : c.avatar;
+const sub = c => c.type === 'CLOSED' ? 'Чат завершён' : c.topic ? S.topics[c.topic] : 'Выбери тему';
+
+/* подтемы выбранной темы + счётчик до начала поиска собеседника */
+function subsHtml(c) {
+  if (c.type !== 'AI' || !c.topic) return '';
+  const cat = (S.catalog || {})[c.topic], left = Math.max(0, 3 - c.n);
+  let h = `<div class="hint" style="margin:0 auto .8rem;max-width:32rem"><b>${left ? `Поиск собеседника через ${left} сообщ.` : 'Ищем собеседника…'}</b>`;
+  if (cat) h += '<br>Отметь, что тебе заходит:' + Object.entries(cat).map(([g, o]) =>
+    `<div class="gt">${g}</div><div class="chips">${Object.entries(o).map(([id, l]) =>
+      `<button data-sub="${id}" class="${c.subs.includes(id) ? 'on' : ''}">${l}</button>`).join('')}</div>`).join('');
+  return h + '</div>';
+}
+
+function render() {
+  const unread = S.chats.reduce((n, c) => n + (c.id === active && view === 'chats' ? 0 : c.unread), 0);
+  $('#nv-chats').innerHTML = 'Чаты' + (unread ? ` <span class="badge">${unread}</span>` : '');
+
+  const tk = Object.keys(S.topics).join();
+  if (tk !== topicsKey) {
+    topicsKey = tk;
+    $('#topics').innerHTML = Object.entries(S.topics).map(([k, l]) =>
+      `<div class="row"><span>${l}</span><button class="btn out sm" data-start="${k}">Начать</button></div>`).join('');
+  }
+  if (view !== 'chats') return;
+
+  if (active && !S.chats.some(c => c.id === active)) active = null;
+  if (!active && mq.matches && S.chats.length) active = S.chats.at(-1).id;   // на телефоне всегда открыт какой-то чат
+
+  $('#list').innerHTML = S.chats.map(c => {
+    const last = c.messages.at(-1);
+    return `<button class="chat ${c.id === active ? 'on' : ''}" data-id="${c.id}">
+      <span class="av ${c.topic ? 't' : ''}">${icon(c)}</span>
+      <span class="tt"><b>Чат ${c.num}</b><small>${esc(last ? last.text : sub(c))}</small></span>
+      ${c.unread && c.id !== active ? `<span class="badge">${c.unread}</span>` : ''}</button>`;
+  }).join('');
+  $('#mdot').hidden = !S.chats.some(c => c.id !== active && c.unread);
+
+  const c = S.chats.find(x => x.id === active);
+  $('#main').hidden = !c;
+  if (!c) return;
+
+  const av = $('#hav'); av.textContent = icon(c); av.className = 'av ' + (c.topic ? 't' : '');
+  $('#hti').textContent = 'Чат ' + c.num;
+  $('#hsu').textContent = (c.type === 'AI' ? 'ИИ · ' : c.type === 'HUMAN' ? 'Живой собеседник · ' : '') + (c.topic ? S.topics[c.topic] : 'тема не выбрана');
+  $('#end').textContent = c.type === 'HUMAN' ? 'Завершить' : c.type === 'AI' ? 'Очистить' : '';
+  $('#in').disabled = $('#send').disabled = c.type === 'CLOSED';
+  $('#in').placeholder = c.type === 'CLOSED' ? 'Чат завершён' : 'Сообщение';
+
+  const key = [c.id, c.messages.length, c.type, c.topic, busy.has(c.id), (c.subs || []).join(), c.n].join();
+  if (key === lastKey) return;
+  lastKey = key;
+
+  let h = subsHtml(c) + c.messages.map(m => `<div class="m ${m.me ? 'me' : ''}">${esc(m.text)}</div>`).join('');
+  if (busy.has(c.id)) h += '<div class="dots">печатает…</div>';
+  if (c.type === 'AI' && !c.topic)
+    h += `<div class="hint"><b>О чём хочешь поболтать?</b><br>Выбери тему или просто напиши, что тебе интересно.
+      <div class="chips">${Object.entries(S.topics).map(([k, l]) => `<button data-topic="${k}">${l}</button>`).join('')}</div></div>`;
+  if (c.type === 'CLOSED') h += '<div class="hint">Чат завершён. Выбери другой в списке или начни новый.</div>';
+  const box = $('#msgs'), changed = box.dataset.chat != c.id, stick = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+  box.innerHTML = h;
+  if (stick || changed) box.scrollTop = box.scrollHeight;
+  if (changed) enter(box);
+  box.dataset.chat = c.id;
+}
+
+async function open(id) {
+  active = id; lastKey = '';
+  $('#chats').classList.remove('drawer');
+  render();
+  try { await call('state', {read: id}); } catch (e) {}
+}
+
+async function send() {
+  const inp = $('#in'), text = inp.value.trim();
+  if (!text || !active || busy.has(active)) return;
+  const id = active, c = S.chats.find(x => x.id === id);
+  inp.value = '';
+  c.messages.push({me: true, text});
+  busy.add(id); lastKey = ''; render();
+  try { await call('send', {chat: id, text}); }
+  catch (e) { tg.showAlert('Не удалось отправить сообщение. Попробуй ещё раз.'); }
+  busy.delete(id); lastKey = ''; render();
+}
+
+async function newChat(topic) {
+  const before = S.chats.length;
+  await call('new');
+  if (S.chats.length === before) return;            // достигнут лимит чатов
+  const id = S.chats.at(-1).id;
+  show('chats'); open(id);
+  if (topic) {
+    busy.add(id); lastKey = ''; render();
+    try { await call('topic', {chat: id, key: topic}); } catch (e) {}
+    busy.delete(id); lastKey = ''; render();
+  }
+}
+
+$('#nv-home').onclick = () => show('home');
+$('#nv-chats').onclick = () => show('chats');
+$('#go').onclick = () => show('chats');
+$('#how').onclick = () => $('#features').scrollIntoView({behavior: 'smooth'});
+$('#topics').onclick = e => { const b = e.target.closest('[data-start]'); if (b) newChat(b.dataset.start); };
+$('#list').onclick = e => { const b = e.target.closest('.chat'); if (b) open(+b.dataset.id); };
+$('#msgs').onclick = async e => {
+  const sb = e.target.closest('[data-sub]');
+  if (sb) { try { await call('subs', {chat: active, sub: sb.dataset.sub}); } catch (err) {} return; }
+  const b = e.target.closest('[data-topic]'); if (!b) return;
+  const id = active;
+  busy.add(id); lastKey = ''; render();
+  try { await call('topic', {chat: id, key: b.dataset.topic}); } catch (err) {}
+  busy.delete(id); lastKey = ''; render();
+};
+$('#new').onclick = () => newChat();
+$('#menu').onclick = () => $('#chats').classList.toggle('drawer');
+$('#scrim').onclick = () => $('#chats').classList.remove('drawer');
+mq.addEventListener('change', () => { $('#chats').classList.remove('drawer'); lastKey = ''; render(); });
+$('#end').onclick = () => {
+  const c = S.chats.find(x => x.id === active); if (!c) return;
+  const q = c.type === 'HUMAN' ? 'Завершить чат с собеседником?' : 'Очистить этот чат и выбрать тему заново?';
+  tg.showConfirm(q, ok => { if (ok) { lastKey = ''; call('close', {chat: c.id}); } });
+};
+$('#send').onclick = send;
+$('#in').onkeydown = e => { if (e.key === 'Enter') send(); };
+
+applyAll();
+enter($('#home'));
+call('state').catch(() => tg.showAlert('Не удалось подключиться к серверу.'));
+setInterval(() => { call('state', {read: view === 'chats' ? active : null}).catch(() => {}); }, 2500);
+</script>
+</body>
+</html>
