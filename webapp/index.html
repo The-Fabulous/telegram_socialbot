@@ -132,6 +132,17 @@ display:flex;flex-direction:column;padding-top:var(--top);transform:translateX(1
 .toast b{display:block}
 .toast small{display:block;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
+/* вход в веб-сервис */
+.auth{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:1.2rem;background:radial-gradient(circle at 20% 10%,#173a2a 0,#0f1110 48%)}
+.auth-card{width:min(100%,27rem);padding:2rem;border:1px solid var(--line);border-radius:1rem;background:rgba(23,26,24,.96);box-shadow:0 24px 70px rgba(0,0,0,.45)}
+.auth-card h1{font:700 2rem Georgia,"Times New Roman",serif;margin-bottom:.45rem}.auth-card h1 span{color:var(--em)}
+.auth-card>p{color:var(--mut);margin-bottom:1.4rem}.auth-card label{display:block;margin:.8rem 0 .35rem;color:var(--mut);font-size:.9rem}
+.auth-card input{width:100%;padding:.8rem .9rem;border:1px solid var(--line);border-radius:.5rem;background:var(--bg);color:var(--tx);font:inherit}
+.auth-card input:focus{border-color:var(--em);outline:none}.auth-card .btn{width:100%;margin-top:1.1rem}
+.auth-switch{text-align:center;margin-top:1rem;color:var(--mut)}.auth-switch button{color:var(--em);text-decoration:underline}
+.auth-error{min-height:1.5rem;margin-top:.7rem;color:#ef8c8c;font-size:.92rem}
+.account{padding:.8rem 0;color:var(--mut);overflow-wrap:anywhere}.account b{display:block;color:var(--tx)}
+
 /* подтемы, шрифты заголовков */
 .gt{margin:.8rem 0 .1rem;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em}
 .chips button.on{border-color:var(--em);color:var(--em)}
@@ -148,16 +159,175 @@ display:flex;flex-direction:column;padding-top:var(--top);transform:translateX(1
 @media(max-width:560px){#gear .l{display:none}#gear .i{display:inline}}
 @media(max-width:420px){header{gap:.7rem;padding-left:.8rem;padding-right:.8rem}nav{gap:.8rem}.logo{font-size:1.2rem}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* веб-компоновка: спокойная палитра и привычная структура мессенджера */
+:root{--bg:#0e1621;--card:#17212b;--line:#273746;--em:#64a9e8;--tx:#eef4f8;--mut:#8ea2b2;--hv:rgba(100,169,232,.09);
+--mf:#2b5278;--mb:#35658f;--tf:#182533;--tb:#263b4d;--mt:#fff;--tt:#eef4f8;--br:14px}
+html{font-size:15px}
+body{font-family:var(--ff,"Trebuchet MS",Arial,sans-serif);background:#0e1621;letter-spacing:.005em}
+#bgfx{background:var(--tint,#0e1621)}
+#bgfx::after{opacity:min(var(--po,.06),.09)}
+header{height:calc(3.75rem + var(--top));padding:var(--top) 1.25rem 0;background:rgba(23,33,43,.96);border-color:var(--line);box-shadow:0 1px 10px rgba(0,0,0,.16)}
+.logo{font-family:inherit!important;font-size:1.18rem;letter-spacing:.01em}
+nav{height:100%;gap:.25rem}
+nav button{height:100%;padding:.35rem .9rem;border:0;border-radius:.6rem;font-size:.92rem;display:flex;align-items:center;gap:.45rem}
+nav button.on{border:0;color:var(--em);background:var(--hv)}
+.nav-icon{font-size:1.08rem;line-height:1}
+#gear .i{display:inline;font-size:1.08rem}
+.btn{border-radius:.65rem;background:var(--em);border-color:var(--em);color:#07131f;box-shadow:none}
+.btn.out{color:var(--em);border-color:#365069}
+
+main#home{background:linear-gradient(160deg,rgba(100,169,232,.07),transparent 32%)}
+.wrap{max-width:66rem;padding:0 2rem 5rem}
+.hero{min-height:29rem;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;padding:4.5rem 0 3rem;max-width:48rem}
+.hero h1{font-family:inherit!important;font-size:clamp(2.2rem,5vw,4.35rem);line-height:1.04;letter-spacing:-.04em;max-width:15ch}
+.hero p{font-size:1.05rem;line-height:1.65;max-width:38rem;margin:1.35rem 0 1.8rem}
+.cta{gap:.7rem}.cta .btn{padding:.78rem 1.5rem}.link{text-decoration:none;color:var(--em)}
+h2.s{font-family:inherit!important;font-size:1.25rem;margin-top:3rem}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;border:0}
+.steps li{display:block;padding:1.2rem;border:1px solid var(--line);border-radius:.8rem;background:rgba(23,33,43,.72)}
+.steps li:before{display:block;margin-bottom:.8rem}.steps p{margin-top:.35rem}
+.row{border:1px solid var(--line);border-radius:.7rem;margin:.55rem 0;padding:.8rem 1rem;background:rgba(23,33,43,.55)}
+
+.chats{grid-template-columns:21rem minmax(0,1fr);background:rgba(14,22,33,.72)}
+.side{background:#17212b;border-color:var(--line)}
+.side-tools{padding:.75rem;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:2;background:#17212b}
+.search{width:100%;padding:.68rem .85rem .68rem 2.35rem;border:0;border-radius:1.2rem;background:#202b36;color:var(--tx);font:inherit}
+.search-wrap{position:relative}.search-wrap:before{content:"⌕";position:absolute;left:.82rem;top:.42rem;color:var(--mut);font-size:1.25rem}
+.side .btn{margin:.65rem 0 0;width:100%}
+.chat{padding:.72rem .85rem;border:0;border-radius:.45rem;margin:.12rem .35rem;width:calc(100% - .7rem)}
+.chat.on{background:#2b5278;box-shadow:none}.chat.on small,.chat.on .badge{color:#dbeeff}
+.av{width:3rem;height:3rem;border-radius:50%;background:#243545;border:0}
+.main{background:rgba(14,22,33,.45)}
+.head{min-height:3.8rem;padding:.55rem 1.05rem;background:#17212b;border-color:var(--line)}
+.head .ttl b{font-size:1rem}.head small{font-size:.82rem}
+.msgs{padding:1.2rem max(1rem,calc((100% - 52rem)/2));gap:.3rem}
+.m{max-width:min(72%,34rem);padding:.52rem .75rem;border:0;border-radius:var(--br);box-shadow:0 1px 1px rgba(0,0,0,.16)}
+.m.me{border-bottom-right-radius:.3rem}.m:not(.me){border-bottom-left-radius:.3rem}
+.bar{width:min(calc(100% - 2rem),54rem);margin:0 auto .75rem;padding:.42rem;background:#17212b;border:0;border-radius:1.45rem;align-items:center}
+.bar input{padding:.68rem .8rem;background:transparent;border:0}.bar input:focus{border:0;outline:none}
+.bar .btn{width:2.75rem;height:2.75rem;min-height:0;border-radius:50%;padding:0;font-size:0;flex:none}
+.bar .btn:after{content:"➤";font-size:1.05rem;margin-left:-.1rem}
+.panel{background:#17212b}.pbody .btn.out{margin-top:.7rem}
+
+@media(max-width:840px){.steps{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:720px){
+body{padding-bottom:calc(4.1rem + var(--bot));height:100dvh}
+header{height:calc(3.45rem + var(--top));padding-left:1rem;padding-right:1rem}
+header nav{position:fixed;z-index:50;left:0;right:0;bottom:0;height:calc(4.1rem + var(--bot));padding:0 .45rem var(--bot);display:grid;grid-template-columns:repeat(3,1fr);gap:.2rem;background:#17212b;border-top:1px solid var(--line);margin:0}
+header nav button{height:4rem;justify-content:center;flex-direction:column;gap:.15rem;padding:.3rem;font-size:.72rem;border-radius:.7rem}
+header nav button.on{background:transparent;color:var(--em)}
+.nav-icon{display:block!important;font-size:1.25rem!important}
+#gear .l{display:block}.logo{font-size:1.08rem}
+main#home{padding-bottom:0}.wrap{padding:0 1rem 2.2rem}.hero{min-height:calc(100dvh - 8rem);padding:2rem 0;justify-content:center}
+.hero h1{font-size:clamp(2.05rem,10vw,3.15rem);max-width:12ch}.hero p{font-size:1rem}.cta{width:100%}.cta .btn{margin-left:auto;order:2}.cta .link{order:1}
+.steps{grid-template-columns:1fr;gap:.55rem}.steps li{padding:1rem}.row{padding:.78rem .85rem}
+.chats{display:block;position:relative}.side{position:absolute;inset:0;width:100%;transform:none!important;transition:transform .22s ease;background:#17212b;z-index:2}
+.main{position:absolute;inset:0;height:100%;transform:translateX(102%);transition:transform .22s ease;background:#0e1621;z-index:3}
+.chats.chat-open .main{transform:none}.chats.chat-open .side{transform:translateX(-25%)!important}
+.scrim{display:none!important}.menu{display:block;font-size:0;padding:.4rem .65rem .4rem 0}.menu:before{content:"‹";font-size:2rem;line-height:1}.menu .dot{display:none}
+.side-tools{padding:.65rem .75rem}.side .btn{position:fixed;z-index:4;right:1rem;bottom:calc(5rem + var(--bot));width:3.5rem;height:3.5rem;border-radius:50%;font-size:0;margin:0;box-shadow:0 8px 22px rgba(0,0,0,.35)}
+.side .btn:after{content:"＋";font-size:1.75rem}
+.chat{padding:.68rem .75rem}.head{min-height:3.45rem}.head .act{font-size:.8rem;padding:.45rem}
+.msgs{padding:.85rem .65rem}.m{max-width:86%}
+.bar{width:calc(100% - .8rem);margin:0 .4rem .4rem;padding:.3rem;border-radius:1.35rem}.bar .btn{width:2.6rem;height:2.6rem}
+}
+@media(max-width:420px){.hero h1{font-size:2.35rem}.auth-card{padding:1.35rem}.wrap{padding-left:.85rem;padding-right:.85rem}}
+
+/* компактная рабочая область: профиль, список и чат-остров */
+header,main#home{display:none!important}
+body{padding:0!important;background:#080b12}
+#bgfx{background:var(--tint,radial-gradient(circle at 20% 0%,#171526 0,#090c14 42%,#07090f 100%))}
+#bgfx::after{opacity:calc(var(--po,.18) * 1.5)}
+.chats{display:grid;grid-template-columns:4.6rem 20.5rem minmax(0,1fr);gap:.75rem;padding:.75rem;height:100dvh;background:transparent}
+.rail,.side,.main{border:1px solid rgba(255,255,255,.065);box-shadow:0 18px 50px rgba(0,0,0,.26)}
+.rail{display:flex;flex-direction:column;align-items:center;gap:.4rem;padding:.65rem .45rem;border-radius:1.2rem;background:rgba(25,26,34,.94);z-index:4}
+.rail-btn{width:3.25rem;height:3.25rem;border-radius:1rem;display:grid;place-items:center;color:#a7a7b4;font-size:1.22rem;position:relative}
+.rail-btn:hover,.rail-btn.on{background:#302b47;color:#c5b8ff}.rail-btn.settings{margin-top:auto}
+.profile-avatar,.profile-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover}.profile-avatar{display:grid;place-items:center;background:linear-gradient(145deg,var(--accent),rgba(0,0,0,.72));color:white;font-weight:800;font-size:1.25rem;overflow:hidden}
+.side{border-radius:1.2rem;background:rgba(30,30,38,.96);overflow:hidden;border-right:1px solid rgba(255,255,255,.065)}
+.side-tools{background:rgba(30,30,38,.98);border-color:rgba(255,255,255,.06);padding:.7rem}
+.search{background:#17171d;border:1px solid rgba(255,255,255,.055);border-radius:1rem}
+.chat{border-radius:.85rem;margin:.18rem .45rem;width:calc(100% - .9rem);padding:.7rem}.chat.on{background:#393252}
+.main{border-radius:1.35rem;background:rgba(21,20,29,.94);overflow:hidden;min-width:0}
+.head{background:rgba(31,30,40,.98);border-color:rgba(255,255,255,.06)}
+.msgs{background:rgba(12,12,18,.42)}
+.bar{background:#24232d;margin-bottom:.7rem;box-shadow:0 8px 28px rgba(0,0,0,.22)}
+.m.me{background:var(--mf,#564b82)}.m:not(.me){background:var(--tf,#272631)}
+.btn{background:#8d79e6;border-color:#8d79e6;color:#100d1d}.chat.on .badge{color:#eee9ff}
+.badge{color:#b7a6ff}
+
+.panel{top:.75rem;left:5.95rem;right:auto;bottom:.75rem;width:min(23rem,calc(100vw - 6.7rem));border:1px solid rgba(255,255,255,.08);border-radius:1.2rem;background:#202028;box-shadow:0 22px 65px rgba(0,0,0,.5);padding-top:0;transform:translateX(-1rem) scale(.98);transform-origin:left top;opacity:0}
+.panel.open{transform:none;opacity:1}.pscrim{z-index:54;background:rgba(3,4,8,.42)}
+.profile-card{text-align:center;padding:1.25rem 0 .4rem}.profile-card .profile-avatar{width:5.4rem;height:5.4rem;margin:0 auto .75rem;font-size:1.8rem}
+.profile-card h3{font-size:1.22rem}.profile-card p{color:var(--mut);margin:.25rem auto 0;max-width:18rem;white-space:pre-wrap}
+.profile-about{margin:1rem 0;padding:1rem;border-radius:.85rem;background:#18181f;color:#a8a8b5;font-size:.92rem;line-height:1.55}
+.profile-form label{display:block;color:var(--mut);font-size:.82rem;margin:.8rem 0 .3rem}.profile-form input,.profile-form textarea{width:100%;padding:.72rem .8rem;border:1px solid #3a3945;border-radius:.65rem;background:#17171d;color:var(--tx);font:inherit;resize:vertical}
+.profile-form>#profile-save{width:100%;margin-top:.9rem}
+.avatar-actions{display:flex;gap:.5rem}.avatar-actions .btn{flex:1;margin-top:.5rem!important}.avatar-actions input{display:none}
+
+@media(max-width:760px){
+.chats{display:block;padding:0;height:100dvh}.rail{position:fixed;z-index:8;left:.55rem;right:.55rem;bottom:calc(.5rem + var(--bot));height:4rem;padding:.35rem .5rem;border-radius:1.15rem;flex-direction:row;justify-content:space-around;background:rgba(30,30,38,.97)}
+.rail-btn{width:3.2rem;height:3.2rem}.rail-btn.settings{margin:0}.side{position:absolute;inset:0 0 0 0;border:0;border-radius:0;padding-bottom:5rem}.main{position:absolute;inset:0;border:0;border-radius:0;padding-bottom:calc(4.7rem + var(--bot))}
+.chats.chat-open .rail{transform:translateY(120%)}.chats.chat-open .main{padding-bottom:0}
+.panel{left:.45rem;right:.45rem;top:auto;bottom:calc(.5rem + var(--bot));width:auto;max-height:min(85dvh,46rem);border-radius:1.2rem;transform:translateY(1rem);transform-origin:center bottom}.panel.open{transform:none}
+.pbody{padding-bottom:1rem}.side .btn{bottom:calc(5rem + var(--bot))}
+}
+
+/* финальная раскладка: два острова на общем фоне */
+:root{--surface:rgba(32,33,39,.84);--surface-2:#17181e;--active:#343a46;--accent:#6e9fd1}
+.chats{grid-template-columns:21rem minmax(0,1fr);gap:1rem;padding:1rem}
+.side{background:var(--surface);border-color:rgba(255,255,255,.1);border-radius:1.35rem;backdrop-filter:blur(18px)}
+.side-tools{background:rgba(32,33,39,.72);padding:.75rem;border-color:rgba(255,255,255,.06)}
+.side-search-row{display:flex;align-items:center;gap:.5rem}.side-search-row .search-wrap{flex:1}
+.hamb{width:2.7rem;height:2.7rem;border-radius:.85rem;background:var(--surface-2);color:var(--tx);font-size:1.25rem;flex:none}.hamb:hover,.hamb[aria-expanded="true"]{background:var(--active);color:var(--accent)}
+.search{background:var(--surface-2)}
+.chat.on{background:var(--active)}
+.main{background:transparent;border:0;box-shadow:none;border-radius:0;overflow:visible;padding:0 .25rem}
+.head{border:1px solid rgba(255,255,255,.1);border-radius:1.15rem;background:var(--surface);box-shadow:0 14px 40px rgba(0,0,0,.2);backdrop-filter:blur(18px)}
+.msgs{background:transparent;padding-top:1.4rem;padding-bottom:1rem}
+.bar{background:var(--surface);border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(18px)}
+.btn{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.out{color:var(--accent);border-color:var(--accent)}
+.badge,.act,.link{color:var(--accent)}
+.app-menu{position:fixed;z-index:58;top:4.6rem;left:1.35rem;width:18rem;padding:.5rem;border:1px solid rgba(255,255,255,.1);border-radius:1.1rem;background:rgba(32,33,39,.96);backdrop-filter:blur(22px);box-shadow:0 22px 60px rgba(0,0,0,.5)}
+.app-menu button{display:flex;align-items:center;gap:.8rem;width:100%;padding:.72rem;border-radius:.8rem;text-align:left}.app-menu button:hover{background:var(--active)}
+.app-menu button>span:last-child{min-width:0}.app-menu b,.app-menu small{display:block}.app-menu small{color:var(--mut);font-size:.8rem}.menu-ico{width:2.7rem;height:2.7rem;border-radius:.8rem;background:var(--surface-2);display:grid;place-items:center;font-size:1.1rem;flex:none}
+.app-menu .profile-avatar{width:2.7rem;height:2.7rem;flex:none}
+.panel{left:auto;right:1rem;top:1rem;bottom:1rem;width:min(23rem,calc(100vw - 2rem));background:var(--surface);border-radius:1.35rem;transform:translateX(1rem) scale(.98);transform-origin:right top}
+.panel.open{transform:none}.pbody select,.profile-form input,.profile-form textarea,.opts button{background:var(--surface-2)}
+.profile-about,.prev{background:var(--surface-2)}
+.opts .sw{background:var(--swatch)!important}
+
+@media(max-width:760px){
+.chats{display:block;padding:.55rem}.side{inset:.55rem .55rem calc(5rem + var(--bot));border:1px solid rgba(255,255,255,.1);border-radius:1.2rem;padding-bottom:0}.main{inset:.55rem .55rem calc(5rem + var(--bot));padding:0;overflow:hidden}
+.head{margin:0 0 .35rem;border-radius:1rem;border:1px solid rgba(255,255,255,.1);box-shadow:0 12px 30px rgba(0,0,0,.18)}.bar{margin:0 .25rem calc(.45rem + var(--bot));border-radius:1.3rem}
+.app-menu{left:.55rem;top:4.1rem;width:min(18rem,calc(100vw - 1.1rem))}
+.panel{left:.45rem;right:.45rem;top:auto;bottom:.45rem;width:auto;max-height:92dvh;transform:translateY(1rem);transform-origin:center bottom}
+.side .btn{bottom:1rem}
+}
 </style>
 </head>
 <body>
 <div id="bgfx"></div>
+<section class="auth" id="auth" hidden>
+  <form class="auth-card" id="auth-form">
+    <h1>Social Bridge<span>.</span></h1>
+    <p id="auth-sub">Войди, чтобы продолжить общение.</p>
+    <div id="name-field" hidden><label for="auth-name">Как тебя называть</label><input id="auth-name" maxlength="60" autocomplete="name"></div>
+    <label for="auth-email">Email</label><input id="auth-email" type="email" maxlength="254" autocomplete="email" required>
+    <label for="auth-password">Пароль</label><input id="auth-password" type="password" minlength="8" maxlength="128" autocomplete="current-password" required>
+    <div class="auth-error" id="auth-error" role="alert"></div>
+    <button class="btn" id="auth-submit" type="submit">Войти</button>
+    <div class="auth-switch"><span id="auth-question">Нет аккаунта?</span> <button type="button" id="auth-toggle">Создать</button></div>
+  </form>
+</section>
 <header>
   <div class="logo">Social Bridge<span>.</span></div>
   <nav>
-    <button id="nv-home" class="on">Главная</button>
-    <button id="nv-chats">Чаты</button>
-    <button id="gear" aria-label="Настройки"><span class="l">Настройки</span><span class="i">⚙</span></button>
+    <button id="nv-home" class="on"><span class="nav-icon">⌂</span><span>Главная</span></button>
+    <button id="nv-chats"><span class="nav-icon">◉</span><span>Чаты</span></button>
+    <button id="gear" aria-label="Настройки"><span class="nav-icon i">⚙</span><span class="l">Настройки</span></button>
   </nav>
 </header>
 
@@ -187,13 +357,13 @@ display:flex;flex-direction:column;padding-top:var(--top);transform:translateX(1
 
 <section class="chats" id="chats" hidden>
   <aside class="side">
-    <button class="btn" id="new">Новый чат с ИИ</button>
+    <div class="side-tools"><div class="side-search-row"><button class="hamb" id="app-menu-open" aria-label="Открыть меню" aria-expanded="false" aria-controls="app-menu">☰</button><div class="search-wrap"><input class="search" id="search" type="search" placeholder="Поиск" autocomplete="off"></div></div><button class="btn" id="new">Новый чат с ИИ</button></div>
     <div id="list"></div>
   </aside>
   <div class="scrim" id="scrim"></div>
   <div class="main" id="main" hidden>
     <div class="head">
-      <button class="menu" id="menu" aria-label="Список чатов">☰<span class="dot" id="mdot" hidden></span></button>
+      <button class="menu" id="menu" aria-label="Назад к чатам"><span class="dot" id="mdot" hidden></span></button>
       <div class="av" id="hav"></div>
       <div class="ttl"><b id="hti"></b><small id="hsu"></small></div>
       <button class="act" id="end"></button>
@@ -206,12 +376,23 @@ display:flex;flex-direction:column;padding-top:var(--top);transform:translateX(1
   </div>
 </section>
 
+<div class="app-menu" id="app-menu" hidden>
+  <button class="menu-profile" data-panel="profile"><span class="profile-avatar" id="menu-avatar">S</span><span><b id="menu-name">Профиль</b><small>Изменить данные</small></span></button>
+  <button data-panel="appearance"><span class="menu-ico">◐</span><span><b>Оформление</b><small>Цвета и фон</small></span></button>
+  <button data-panel="settings"><span class="menu-ico">⚙</span><span><b>Настройки</b><small>Язык и уведомления</small></span></button>
+</div>
 <div class="pscrim" id="pscrim"></div>
 <aside class="panel" id="panel" aria-label="Настройки"></aside>
 <div id="toasts" role="status" aria-live="polite"></div>
 
 <script>
-const tg = Telegram.WebApp; tg.ready(); tg.expand();
+const telegram = window.Telegram && Telegram.WebApp;
+const inTelegram = Boolean(telegram && telegram.initData);
+const tg = telegram || {ready(){},expand(){},setHeaderColor(){},setBackgroundColor(){},disableVerticalSwipes(){},
+  isVersionAtLeast(){return false},HapticFeedback:{notificationOccurred(){}}};
+tg.ready(); tg.expand();
+const alertUser = text => inTelegram && tg.showAlert ? tg.showAlert(text) : window.alert(text);
+const confirmUser = (text, done) => inTelegram && tg.showConfirm ? tg.showConfirm(text, done) : done(window.confirm(text));
 try { tg.setHeaderColor('#0f1110'); tg.setBackgroundColor('#0f1110'); } catch (e) {}
 try { tg.disableVerticalSwipes(); } catch (e) {}
 try { if (tg.isVersionAtLeast('8.0') && !tg.isFullscreen) tg.requestFullscreen(); } catch (e) {}
@@ -222,10 +403,10 @@ const mq = matchMedia('(max-width:720px)');
 const enter = el => { el.classList.remove('enter'); void el.offsetWidth; el.classList.add('enter'); };
 
 /* =============== настройки внешнего вида (хранятся на устройстве) =============== */
-const LS = 'sb-settings-v2';
-const DEF = {p: 'snow', t: 'ocean', o: 0.2,
-  mf: '#1d3a2f', mb: '#2a5242', tf: '#171a18', tb: '#262b28', bw: 1, br: 10,
-  ui: innerWidth >= 900 ? 120 : 100, toast: true, haptic: true, sound: false, ff: 'sys'};
+const LS = 'sb-settings-v4';
+const DEF = {p: 'doodles', t: 'coal', bg: '', accent: '#6e9fd1', o: 0.18,
+  mf: '#2b5278', mb: '#35658f', tf: '#182533', tb: '#263b4d', bw: 0, br: 16,
+  ui: 100, toast: true, haptic: true, sound: false, ff: 'clean'};
 let cfg = {...DEF};
 try { Object.assign(cfg, JSON.parse(localStorage.getItem(LS) || '{}')); } catch (e) {}
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(cfg)); } catch (e) {} };
@@ -240,12 +421,16 @@ const FONTS = {
 };
 
 const PRESETS = [
-  {n: 'Изумруд', mf: '#1d3a2f', mb: '#2a5242', tf: '#171a18', tb: '#262b28'},
-  {n: 'Океан',   mf: '#17364d', mb: '#2a5878', tf: '#151b20', tb: '#26323a'},
-  {n: 'Закат',   mf: '#3a2150', mb: '#5a3a78', tf: '#1a171d', tb: '#2f2938'},
-  {n: 'Янтарь',  mf: '#4a3414', mb: '#75551f', tf: '#1a1815', tb: '#302b22'},
-  {n: 'Светлый', mf: '#cfeede', mb: '#9ccfb4', tf: '#f1f2f0', tb: '#d8dbd6'},
+  {n: 'Классика', mf: '#2b5278', mb: '#35658f', tf: '#182533', tb: '#263b4d'},
+  {n: 'Графит',   mf: '#37495d', mb: '#465c73', tf: '#1b2632', tb: '#2a3a49'},
+  {n: 'Лаванда',  mf: '#65558f', mb: '#7969a6', tf: '#242132', tb: '#38334a'},
+  {n: 'Янтарь',   mf: '#74552d', mb: '#8d6a39', tf: '#29241d', tb: '#44392b'},
+  {n: 'Светлый',  mf: '#cde6fa', mb: '#a6cce8', tf: '#f0f4f7', tb: '#d5dfe6'},
 ];
+if (cfg.mf === '#564b82' && cfg.mb === '#685b98' && cfg.tf === '#272631' && cfg.tb === '#343340') {
+  Object.assign(cfg, {mf: DEF.mf, mb: DEF.mb, tf: DEF.tf, tb: DEF.tb});
+  if (cfg.t === 'dusk' && !cfg.bg) cfg.t = DEF.t;
+}
 
 /* ---------- узоры в стиле обоев Telegram ---------- */
 const X = 'xmlns="http://www.w3.org/2000/svg"';
@@ -293,6 +478,13 @@ const G = {
   diamond:{r: 6,  svg: P('M0-5L3.6 0L0 5L-3.6 0Z')},
   ring:   {r: 5,  svg: '<circle r="3.2"/>'},
   dot:    {r: 2,  fill: 1, svg: '<circle r="1.7"/>'},
+  heart:  {r: 13, svg: P('M0 11C-3 7-11 3-11-4C-11-11-2-12 0-6C2-12 11-11 11-4C11 3 3 7 0 11Z')},
+  smile:  {r: 13, svg: '<circle r="11"/>' + P('M-4-2V-1M4-2V-1M-5 3Q0 8 5 3')},
+  planet: {r: 15, svg: '<circle r="8"/>' + P('M-14 4Q0-5 14-4M-14 4Q0 12 14-4')},
+  music:  {r: 13, svg: P('M-3 7V-8L8-10V4M-3-4L8-6') + '<circle cx="-6" cy="8" r="3"/><circle cx="5" cy="5" r="3"/>'},
+  flower: {r: 14, svg: '<circle r="3"/>' + [0,60,120,180,240,300].map(a => `<ellipse cy="-8" ry="5" rx="3.5" transform="rotate(${a})"/>`).join('')},
+  chat:   {r: 14, svg: P('M-12-8H12V7H1L-6 12V7H-12Z') + P('M-7-2H7M-7 2H3')},
+  game:   {r: 15, svg: P('M-12 7L-9-6Q-8-10-3-8H3Q8-10 9-6L12 7Q13 12 8 11L3 6H-3L-8 11Q-13 12-12 7Z') + P('M-7-2H-1M-4-5V1M5-3V-2M8 0V1')},
 };
 
 /* случайная (но повторяемая) плотная расстановка: сначала крупные фигуры, потом средние, мелкие и «заполнители» */
@@ -321,6 +513,7 @@ function scatter({main, fill, seed, big = [2.1, 3.2], mid = [1.4, 2], small = [0
 
 const PATS = {
   none:   {name: 'Без узора'},
+  doodles:{name: 'Дудлы', main: ['heart','smile','planet','music','flower','chat','game'], fill: ['star5','spark','dot','ring'], seed: 71, big: [1.7,2.5], mid: [1.1,1.6]},
   snow:   {name: 'Снежинки', main: ['flake1', 'flake2', 'flake3', 'flake4', 'flake5', 'flake6'], fill: ['dot', 'mini', 'diamond', 'ring'], seed: 11},
   leaves: {name: 'Листья',   main: ['birch', 'maple', 'oak', 'ginkgo', 'maple', 'birch'], fill: ['acorn', 'dot', 'ring'], seed: 23, big: [2, 2.9], mid: [1.3, 1.9]},
   stars:  {name: 'Звёзды',   main: ['star5', 'spark', 'star8', 'star6', 'spark'], fill: ['tstar', 'dot', 'ring', 'diamond'], seed: 37, big: [2, 2.9], mid: [1.3, 1.9]},
@@ -333,11 +526,11 @@ const getPat = k => {
 };
 
 const TINTS = {
-  coal:   {name: 'Уголь',  bg: '#0f1110', pc: '#8b918c'},
-  forest: {name: 'Лес',    bg: 'radial-gradient(120% 90% at 0% 0%,#15331f 0%,#0f1110 62%)', pc: '#5fb58a'},
-  ocean:  {name: 'Океан',  bg: 'radial-gradient(120% 90% at 100% 0%,#10283a 0%,#0f1110 62%)', pc: '#5fa8d6'},
-  dusk:   {name: 'Закат',  bg: 'linear-gradient(160deg,#2a1636 0%,#0f1110 60%)', pc: '#b085d9'},
-  amber:  {name: 'Янтарь', bg: 'radial-gradient(120% 90% at 100% 0%,#33220f 0%,#0f1110 62%)', pc: '#d9a85f'},
+  coal:   {name: 'Графит', bg: '#0e1621', pc: '#66829a'},
+  forest: {name: 'Лес',    bg: 'radial-gradient(120% 90% at 0% 0%,#15312d 0%,#0e1621 62%)', pc: '#61a99b'},
+  ocean:  {name: 'Океан',  bg: 'radial-gradient(120% 90% at 100% 0%,#122b40 0%,#0e1621 62%)', pc: '#64a9e8'},
+  dusk:   {name: 'Сумерки',bg: 'radial-gradient(circle at 18% 0%,#211a30 0%,#0b0c13 48%,#07090f 100%)', pc: '#8d79e6'},
+  amber:  {name: 'Янтарь', bg: 'radial-gradient(120% 90% at 100% 0%,#302719 0%,#0e1621 62%)', pc: '#c99a59'},
 };
 
 /* проверка значений из хранилища */
@@ -355,8 +548,11 @@ const ink = h => lum(h) > 0.6 ? '#10130f' : '#eef0ec';
 function applyAll() {
   const st = document.documentElement.style, pat = getPat(cfg.p), t = TINTS[cfg.t];
   st.fontSize = (15 * cfg.ui / 100) + 'px';
-  st.setProperty('--tint', t.bg);
+  st.setProperty('--tint', cfg.bg || t.bg);
   st.setProperty('--pc', t.pc);
+  st.setProperty('--accent', cfg.accent);
+  st.setProperty('--em', cfg.accent);
+  st.setProperty('--accent-ink', ink(cfg.accent));
   st.setProperty('--po', pat ? cfg.o : 0);
   st.setProperty('--pat', pat ? `url("data:image/svg+xml,${encodeURIComponent(pat.svg)}")` : 'none');
   st.setProperty('--ps', pat ? pat.size : 'auto');
@@ -370,66 +566,121 @@ function applyAll() {
 }
 
 /* =============== панель настроек =============== */
-function panelHtml() {
+let profileDraftAvatar;
+const avatarHtml = (account, id = '') => {
+  const avatar = profileDraftAvatar !== undefined ? profileDraftAvatar : account.avatar;
+  if (avatar) return `<span class="profile-avatar"${id ? ` id="${id}"` : ''}><img src="${avatar}" alt=""></span>`;
+  const initial = (account.name || account.email || 'S').trim().charAt(0).toUpperCase();
+  return `<span class="profile-avatar"${id ? ` id="${id}"` : ''}>${esc(initial)}</span>`;
+};
+
+let panelSection = 'profile';
+function panelHtml(section = panelSection) {
   const st = S.settings || {lang: 'auto', push: true}, langs = S.langs || {auto: 'Авто'};
+  const account = S.account || {};
   const tgl = (k, label, v) => `<label class="tg"><span>${label}</span><input type="checkbox" data-k="${k}" ${v ? 'checked' : ''}></label>`;
-  const col = (k, label) => `<label class="cl"><span>${label}</span><input type="color" data-c="${k}" value="${cfg[k]}"></label>`;
+  const col = (k, label, value = cfg[k]) => `<label class="cl"><span>${label}</span><input type="color" data-c="${k}" value="${value}"></label>`;
   const range = (k, label, min, max, step) => `<label class="rg"><span>${label}</span><input type="range" data-r="${k}" min="${min}" max="${max}" step="${step}" value="${cfg[k]}"></label>`;
   const same = p => p.mf === cfg.mf && p.mb === cfg.mb && p.tf === cfg.tf && p.tb === cfg.tb;
-  return `<div class="phead"><h3>Настройки</h3><button class="x" id="pclose" aria-label="Закрыть">✕</button></div>
-  <div class="pbody">
+  const titles = {profile: 'Профиль', appearance: 'Оформление', settings: 'Настройки'};
+  let content;
+  if (section === 'profile') content = `
+    <div class="profile-card">${avatarHtml(account)}<h3>${esc(account.name || 'Пользователь')}</h3><p>${esc(account.bio || account.email || '')}</p></div>
+    <div class="profile-form">
+      <div class="avatar-actions"><label class="btn" for="avatar-file">Выбрать фото</label><input id="avatar-file" type="file" accept="image/png,image/jpeg,image/webp"><button class="btn out" id="avatar-remove" type="button">Убрать</button></div>
+      <label for="profile-name">Имя</label><input id="profile-name" maxlength="60" value="${esc(account.name || '')}">
+      <label for="profile-bio">О себе</label><textarea id="profile-bio" maxlength="180" rows="3" placeholder="Пара слов о себе">${esc(account.bio || '')}</textarea>
+      <button class="btn" id="profile-save" type="button">Сохранить профиль</button>
+    </div>
+    <div class="profile-about">Social Bridge помогает сначала сформулировать интерес с ИИ, а затем находит живого собеседника с похожей темой.</div>`;
+  else if (section === 'appearance') content = `
     <h4>Фон</h4>
     <div class="opts">${Object.entries(PATS).map(([k, p]) => `<button data-p="${k}" class="${cfg.p === k ? 'on' : ''}">${p.name}</button>`).join('')}</div>
     <div class="opts" style="margin-top:.7rem">${Object.entries(TINTS).map(([k, t]) =>
-      `<button class="sw ${cfg.t === k ? 'on' : ''}" data-t="${k}" style="background:${t.bg}" aria-label="${t.name}"></button>`).join('')}</div>
+      `<button class="sw ${!cfg.bg && cfg.t === k ? 'on' : ''}" data-t="${k}" style="--swatch:${t.bg}" aria-label="${t.name}" title="${t.name}"></button>`).join('')}</div>
+    ${col('bg', 'Цвет фона', cfg.bg || '#0e1621')}
+    ${col('accent', 'Цвет акцента')}
     ${range('o', 'Яркость узора', 0.03, 0.3, 0.01)}
-
-    <h4>Сообщения</h4>
+    <h4>Цвета сообщений</h4>
     <div class="prev"><div class="m">Привет! Как дела?</div><div class="m me">Всё отлично, а у тебя?</div></div>
     <div class="opts">${PRESETS.map((p, i) => `<button data-pr="${i}" class="${same(p) ? 'on' : ''}">${p.n}</button>`).join('')}</div>
     ${col('mf', 'Мои: заливка')}${col('mb', 'Мои: обводка')}
     ${col('tf', 'Собеседник: заливка')}${col('tb', 'Собеседник: обводка')}
     ${range('bw', 'Толщина обводки', 0, 4, 1)}${range('br', 'Скругление', 0, 24, 1)}
-
+    <h4>Шрифт и размер</h4>
+    <select data-f="ff">${Object.entries(FONTS).map(([k, [n]]) => `<option value="${k}" ${cfg.ff === k ? 'selected' : ''}>${n}</option>`).join('')}</select>
+    <div class="prev" style="margin-top:.7rem"><div class="m">Так выглядит текст сообщений</div></div>
+    ${range('ui', 'Масштаб, %', 90, 150, 5)}
+    <button class="btn out" id="reset">Сбросить оформление</button>`;
+  else content = `
     <h4>Уведомления</h4>
     ${tgl('toast', 'Всплывающие в приложении', cfg.toast)}
     ${tgl('haptic', 'Вибрация', cfg.haptic)}
     ${tgl('sound', 'Звук', cfg.sound)}
-    ${tgl('push', 'В Telegram, когда приложение закрыто', st.push)}
+    ${account.telegram_id ? tgl('push', 'В Telegram, когда приложение закрыто', st.push) : ''}
 
     <h4>Язык ИИ</h4>
     <select data-s="lang">${Object.entries(langs).map(([k, l]) => `<option value="${k}" ${st.lang === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
-
-    <h4>Шрифт</h4>
-    <select data-f="ff">${Object.entries(FONTS).map(([k, [n]]) => `<option value="${k}" ${cfg.ff === k ? 'selected' : ''}>${n}</option>`).join('')}</select>
-    <div class="prev" style="margin-top:.7rem"><div class="m">Так выглядит текст сообщений</div></div>
-
-    <h4>Интерфейс</h4>
-    ${range('ui', 'Масштаб, %', 90, 150, 5)}
-    <button class="btn out" id="reset">Сбросить внешний вид</button>
-  </div>`;
+    ${inTelegram ? '' : '<button class="btn out" id="logout">Выйти из аккаунта</button>'}
+  `;
+  return `<div class="phead"><h3>${titles[section]}</h3><button class="x" id="pclose" aria-label="Закрыть">✕</button></div>
+  <div class="pbody">${content}</div>`;
 }
 function refreshPanel() {
   const body = $('#panel .pbody'), y = body ? body.scrollTop : 0;
-  $('#panel').innerHTML = panelHtml();
+  $('#panel').innerHTML = panelHtml(panelSection);
   $('#panel .pbody').scrollTop = y;
 }
-function openPanel() { $('#panel').innerHTML = panelHtml(); $('#panel').classList.add('open'); $('#pscrim').classList.add('open'); }
+function openPanel(section = 'profile') {
+  panelSection = section;
+  if (section === 'profile') profileDraftAvatar = undefined;
+  $('#app-menu').hidden = true;
+  $('#app-menu-open').setAttribute('aria-expanded', 'false');
+  $('#panel').innerHTML = panelHtml(section);
+  $('#panel').classList.add('open');
+  $('#pscrim').classList.add('open');
+}
 function closePanel() { $('#panel').classList.remove('open'); $('#pscrim').classList.remove('open'); }
+function closeAppMenu() {
+  $('#app-menu').hidden = true;
+  $('#app-menu-open').setAttribute('aria-expanded', 'false');
+}
 
 $('#gear').onclick = openPanel;
-$('#pscrim').onclick = closePanel;
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+$('#pscrim').onclick = () => { closePanel(); closeAppMenu(); };
+$('#app-menu-open').onclick = () => {
+  const menu = $('#app-menu'), opening = menu.hidden;
+  menu.hidden = !opening;
+  $('#app-menu-open').setAttribute('aria-expanded', String(opening));
+};
+$('#app-menu').onclick = e => {
+  const item = e.target.closest('[data-panel]');
+  if (item) openPanel(item.dataset.panel);
+};
+document.addEventListener('click', e => {
+  if (!e.target.closest('#app-menu') && !e.target.closest('#app-menu-open')) closeAppMenu();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closePanel(); closeAppMenu(); }
+});
 
-$('#panel').addEventListener('click', e => {
+$('#panel').addEventListener('click', async e => {
   const t = e.target;
   if (t.closest('#pclose')) return closePanel();
   const p = t.closest('[data-p]'), tn = t.closest('[data-t]'), pr = t.closest('[data-pr]');
   if (p) { cfg.p = p.dataset.p; applyAll(); refreshPanel(); }
-  else if (tn) { cfg.t = tn.dataset.t; applyAll(); refreshPanel(); }
+  else if (tn) { cfg.t = tn.dataset.t; cfg.bg = ''; applyAll(); refreshPanel(); }
   else if (pr) { const {mf, mb, tf, tb} = PRESETS[+pr.dataset.pr]; Object.assign(cfg, {mf, mb, tf, tb}); applyAll(); refreshPanel(); }
   else if (t.closest('#reset'))
-    tg.showConfirm('Сбросить фон, цвета сообщений, шрифт и масштаб?', ok => { if (ok) { Object.assign(cfg, DEF); applyAll(); refreshPanel(); } });
+    confirmUser('Сбросить фон, цвета сообщений, шрифт и масштаб?', ok => { if (ok) { Object.assign(cfg, DEF); applyAll(); refreshPanel(); } });
+  else if (t.closest('#avatar-remove')) { profileDraftAvatar = null; refreshPanel(); }
+  else if (t.closest('#profile-save')) {
+    const name = $('#profile-name').value.trim(), bio = $('#profile-bio').value.trim();
+    if (!name) return alertUser('Укажи имя профиля.');
+    await call('profile', {name, bio, ...(profileDraftAvatar !== undefined ? {avatar: profileDraftAvatar} : {})});
+    profileDraftAvatar = undefined; refreshPanel();
+  }
+  else if (t.closest('#logout')) logout();
 });
 $('#panel').addEventListener('input', e => {
   const t = e.target;
@@ -442,7 +693,24 @@ $('#panel').addEventListener('change', e => {
   else if (k) { cfg[k] = t.checked; save(); if (k === 'sound' && t.checked) beep(); }
   else if (t.dataset.f) { cfg.ff = t.value; applyAll(); refreshPanel(); }
   else if (t.dataset.s === 'lang') call('settings', {lang: t.value}).catch(() => {});
+  else if (t.id === 'avatar-file' && t.files && t.files[0]) resizeAvatar(t.files[0]);
 });
+
+function resizeAvatar(file) {
+  if (!/^image\/(png|jpeg|webp)$/.test(file.type)) return alertUser('Выбери PNG, JPEG или WebP.');
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const size = Math.min(img.width, img.height), sx = (img.width - size) / 2, sy = (img.height - size) / 2;
+      const canvas = document.createElement('canvas'); canvas.width = canvas.height = 256;
+      canvas.getContext('2d').drawImage(img, sx, sy, size, size, 0, 0, 256, 256);
+      profileDraftAvatar = canvas.toDataURL('image/webp', .82); refreshPanel();
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
 
 /* =============== уведомления =============== */
 let ac;
@@ -480,17 +748,64 @@ function notify(old, cur) {
 }
 
 /* =============== чаты =============== */
-let S = {chats: [], topics: {}}, active = null, view = 'home', busy = new Set(), lastKey = '', topicsKey = '', loaded = false;
+let S = {chats: [], topics: {}}, active = null, view = 'chats', busy = new Set(), lastKey = '', topicsKey = '', loaded = false, searchTerm = '';
+let authenticated = false, authMode = 'login';
+
+function showAuth(show = true) {
+  $('#auth').hidden = !show;
+  if (show) setTimeout(() => $('#auth-email').focus(), 0);
+}
+
+function setAuthMode(mode) {
+  authMode = mode;
+  const register = mode === 'register';
+  $('#name-field').hidden = !register;
+  $('#auth-sub').textContent = register ? 'Создай аккаунт и начни общение.' : 'Войди, чтобы продолжить общение.';
+  $('#auth-submit').textContent = register ? 'Создать аккаунт' : 'Войти';
+  $('#auth-question').textContent = register ? 'Уже есть аккаунт?' : 'Нет аккаунта?';
+  $('#auth-toggle').textContent = register ? 'Войти' : 'Создать';
+  $('#auth-password').autocomplete = register ? 'new-password' : 'current-password';
+  $('#auth-error').textContent = '';
+}
+
+async function authRequest(path, body = {}) {
+  const r = await fetch('/api/auth/' + path, {method: 'POST', credentials: 'include',
+    headers: {'Content-Type': 'application/json', ...(inTelegram ? {'X-Init-Data': tg.initData} : {})},
+    body: JSON.stringify(body)});
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'Не удалось выполнить запрос.');
+  return data;
+}
+
+$('#auth-toggle').onclick = () => setAuthMode(authMode === 'login' ? 'register' : 'login');
+$('#auth-form').onsubmit = async e => {
+  e.preventDefault();
+  const button = $('#auth-submit'); button.disabled = true; $('#auth-error').textContent = '';
+  try {
+    await authRequest(authMode, {email: $('#auth-email').value, password: $('#auth-password').value,
+      name: $('#auth-name').value});
+    authenticated = true; showAuth(false); show('chats'); $('#auth-password').value = '';
+    await call('state');
+  } catch (err) { $('#auth-error').textContent = err.message; }
+  finally { button.disabled = false; }
+};
+
+async function logout() {
+  try { await authRequest('logout'); } catch (e) {}
+  authenticated = false; loaded = false; S = {chats: [], topics: {}}; closePanel(); show('chats'); showAuth(true);
+}
 
 async function call(path, body = {}) {
   const r = await fetch('/api/' + path, {method: 'POST',
-    headers: {'Content-Type': 'application/json', 'X-Init-Data': tg.initData}, body: JSON.stringify(body)});
+    credentials: 'include', headers: {'Content-Type': 'application/json',
+      ...(inTelegram ? {'X-Init-Data': tg.initData} : {})}, body: JSON.stringify(body)});
+  if (r.status === 401) { authenticated = false; showAuth(true); throw new Error('auth'); }
   if (!r.ok) throw new Error(r.status);
   const old = S;
   S = await r.json();
   if (loaded) notify(old, S);
   loaded = true;
-  if (S.notice) tg.showAlert(S.notice);
+  if (S.notice) alertUser(S.notice);
   render();
 }
 
@@ -501,6 +816,7 @@ function show(v) {
   $('#chats').hidden = v !== 'chats';
   $('#nv-home').classList.toggle('on', v === 'home');
   $('#nv-chats').classList.toggle('on', v === 'chats');
+  if (v === 'chats' && mq.matches) $('#chats').classList.remove('chat-open');
   if (was !== v) enter(v === 'home' ? $('#home') : $('#chats'));
   render();
 }
@@ -520,8 +836,11 @@ function subsHtml(c) {
 }
 
 function render() {
+  const account = S.account || {}, menuAvatar = $('#menu-avatar');
+  if (menuAvatar) menuAvatar.innerHTML = account.avatar ? `<img src="${account.avatar}" alt="">` : esc((account.name || account.email || 'S').trim().charAt(0).toUpperCase());
+  $('#menu-name').textContent = account.name || account.email || 'Профиль';
   const unread = S.chats.reduce((n, c) => n + (c.id === active && view === 'chats' ? 0 : c.unread), 0);
-  $('#nv-chats').innerHTML = 'Чаты' + (unread ? ` <span class="badge">${unread}</span>` : '');
+  $('#nv-chats').innerHTML = `<span class="nav-icon">◉</span><span>Чаты${unread ? ` · ${unread}` : ''}</span>`;
 
   const tk = Object.keys(S.topics).join();
   if (tk !== topicsKey) {
@@ -532,9 +851,14 @@ function render() {
   if (view !== 'chats') return;
 
   if (active && !S.chats.some(c => c.id === active)) active = null;
-  if (!active && mq.matches && S.chats.length) active = S.chats.at(-1).id;   // на телефоне всегда открыт какой-то чат
+  if (!active && !mq.matches && S.chats.length) active = S.chats.at(-1).id;
 
-  $('#list').innerHTML = S.chats.map(c => {
+  const visibleChats = S.chats.filter(c => {
+    if (!searchTerm) return true;
+    const last = c.messages.at(-1), haystack = `чат ${c.num} ${sub(c)} ${last ? last.text : ''}`.toLowerCase();
+    return haystack.includes(searchTerm);
+  });
+  $('#list').innerHTML = visibleChats.map(c => {
     const last = c.messages.at(-1);
     return `<button class="chat ${c.id === active ? 'on' : ''}" data-id="${c.id}">
       <span class="av ${c.topic ? 't' : ''}">${icon(c)}</span>
@@ -574,6 +898,7 @@ function render() {
 async function open(id) {
   active = id; lastKey = '';
   $('#chats').classList.remove('drawer');
+  if (mq.matches) $('#chats').classList.add('chat-open');
   render();
   try { await call('state', {read: id}); } catch (e) {}
 }
@@ -586,7 +911,7 @@ async function send() {
   c.messages.push({me: true, text});
   busy.add(id); lastKey = ''; render();
   try { await call('send', {chat: id, text}); }
-  catch (e) { tg.showAlert('Не удалось отправить сообщение. Попробуй ещё раз.'); }
+  catch (e) { alertUser('Не удалось отправить сообщение. Попробуй ещё раз.'); }
   busy.delete(id); lastKey = ''; render();
 }
 
@@ -619,21 +944,32 @@ $('#msgs').onclick = async e => {
   busy.delete(id); lastKey = ''; render();
 };
 $('#new').onclick = () => newChat();
-$('#menu').onclick = () => $('#chats').classList.toggle('drawer');
+$('#search').oninput = e => { searchTerm = e.target.value.trim().toLowerCase(); lastKey = ''; render(); };
+$('#menu').onclick = () => { if (mq.matches) $('#chats').classList.remove('chat-open'); else $('#chats').classList.toggle('drawer'); };
 $('#scrim').onclick = () => $('#chats').classList.remove('drawer');
-mq.addEventListener('change', () => { $('#chats').classList.remove('drawer'); lastKey = ''; render(); });
+mq.addEventListener('change', () => { $('#chats').classList.remove('drawer', 'chat-open'); lastKey = ''; render(); });
 $('#end').onclick = () => {
   const c = S.chats.find(x => x.id === active); if (!c) return;
   const q = c.type === 'HUMAN' ? 'Завершить чат с собеседником?' : 'Очистить этот чат и выбрать тему заново?';
-  tg.showConfirm(q, ok => { if (ok) { lastKey = ''; call('close', {chat: c.id}); } });
+  confirmUser(q, ok => { if (ok) { lastKey = ''; call('close', {chat: c.id}); } });
 };
 $('#send').onclick = send;
 $('#in').onkeydown = e => { if (e.key === 'Enter') send(); };
 
 applyAll();
-enter($('#home'));
-call('state').catch(() => tg.showAlert('Не удалось подключиться к серверу.'));
-setInterval(() => { call('state', {read: view === 'chats' ? active : null}).catch(() => {}); }, 2500);
+async function bootstrap() {
+  if (inTelegram) {
+    authenticated = true;
+  } else {
+    try { await authRequest('me'); authenticated = true; }
+    catch (e) { showAuth(true); return; }
+  }
+  showAuth(false);
+  show('chats');
+  call('state').catch(e => { if (e.message !== 'auth') alertUser('Не удалось подключиться к серверу.'); });
+}
+bootstrap();
+setInterval(() => { if (authenticated) call('state', {read: view === 'chats' ? active : null}).catch(() => {}); }, 2500);
 </script>
 </body>
 </html>
