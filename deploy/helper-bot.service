@@ -1,0 +1,38 @@
+[Unit]
+Description=Helper Bot web messenger
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=helperbot
+Group=helperbot
+WorkingDirectory=/opt/helper-bot/current
+EnvironmentFile=/etc/helper-bot/helper-bot.env
+RuntimeDirectory=helper-bot
+RuntimeDirectoryMode=0750
+ExecStart=/opt/helper-bot/current/.venv/bin/python /opt/helper-bot/current/bot.py
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=45
+KillSignal=SIGINT
+
+# The application intentionally supports one process only.
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/run/helper-bot
+
+[Install]
+WantedBy=multi-user.target
