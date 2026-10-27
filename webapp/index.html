@@ -306,6 +306,12 @@ body{padding:0!important;background:#080b12}
 .panel{left:.45rem;right:.45rem;top:auto;bottom:.45rem;width:auto;max-height:92dvh;transform:translateY(1rem);transform-origin:center bottom}
 .side .btn{bottom:1rem}
 }
+.demo-banner{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:.7rem;padding:.55rem 1rem;background:var(--card);border-bottom:1px solid var(--line);font-size:.85rem;flex-shrink:0}
+.demo-banner span{color:var(--mut)}
+.demo-banner button{color:var(--em);white-space:nowrap;text-decoration:underline}
+.demo-banner:not([hidden]) ~ .chats{height:auto;min-height:0}
+@media(max-width:720px){.demo-banner:not([hidden]) ~ .chats.chat-open .side{visibility:hidden}}
+.auth-note{display:block;margin-top:.6rem;text-align:center;color:var(--mut);font-size:.8rem}
 </style>
 </head>
 <body>
@@ -319,6 +325,8 @@ body{padding:0!important;background:#080b12}
     <label for="auth-password">Пароль</label><input id="auth-password" type="password" minlength="8" maxlength="128" autocomplete="current-password" required>
     <div class="auth-error" id="auth-error" role="alert"></div>
     <button class="btn" id="auth-submit" type="submit">Войти</button>
+    <button class="btn out" id="auth-skip" type="button">Пропустить вход</button>
+    <small class="auth-note">Деморежим без аккаунта. Чаты не сохраняются.</small>
     <div class="auth-switch"><span id="auth-question">Нет аккаунта?</span> <button type="button" id="auth-toggle">Создать</button></div>
   </form>
 </section>
@@ -330,6 +338,10 @@ body{padding:0!important;background:#080b12}
     <button id="gear" aria-label="Настройки"><span class="nav-icon i">⚙</span><span class="l">Настройки</span></button>
   </nav>
 </header>
+<div class="demo-banner" id="demo-banner" hidden>
+  <span>Деморежим · без ИИ и реальных собеседников</span>
+  <button id="demo-login" type="button">Вернуться ко входу</button>
+</div>
 
 <main id="home">
   <div class="wrap">
@@ -621,7 +633,7 @@ function panelHtml(section = panelSection) {
 
     <h4>Язык ИИ</h4>
     <select data-s="lang">${Object.entries(langs).map(([k, l]) => `<option value="${k}" ${st.lang === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
-    ${inTelegram ? '' : '<button class="btn out" id="logout">Выйти из аккаунта</button>'}
+    ${inTelegram && !demoMode ? '' : `<button class="btn out" id="logout">${demoMode ? 'Вернуться ко входу' : 'Выйти из аккаунта'}</button>`}
   `;
   return `<div class="phead"><h3>${titles[section]}</h3><button class="x" id="pclose" aria-label="Закрыть">✕</button></div>
   <div class="pbody">${content}</div>`;
@@ -646,7 +658,7 @@ function closeAppMenu() {
   $('#app-menu-open').setAttribute('aria-expanded', 'false');
 }
 
-$('#gear').onclick = openPanel;
+$('#gear').onclick = () => openPanel('settings');
 $('#pscrim').onclick = () => { closePanel(); closeAppMenu(); };
 $('#app-menu-open').onclick = () => {
   const menu = $('#app-menu'), opening = menu.hidden;
@@ -750,10 +762,56 @@ function notify(old, cur) {
 /* =============== чаты =============== */
 let S = {chats: [], topics: {}}, active = null, view = 'chats', busy = new Set(), lastKey = '', topicsKey = '', loaded = false, searchTerm = '';
 let authenticated = false, authMode = 'login';
+let demoMode = false, sessionVersion = 0, demoChatId = 0;
+
+function resetView() {
+  active = null; loaded = false; lastKey = ''; topicsKey = ''; searchTerm = '';
+  busy.clear(); $('#search').value = ''; $('#in').value = '';
+  $('#topics').innerHTML = ''; $('#auth-password').value = '';
+  closePanel(); closeAppMenu();
+  $('#chats').classList.remove('drawer', 'chat-open');
+}
+
+function demoCall(path, body = {}) {
+  const chat = S.chats.find(c => c.id === body.chat);
+  if (path === 'new') {
+    if (S.chats.length >= 10) { alertUser('В деморежиме доступно до 10 чатов.'); return; }
+    const id = ++demoChatId;
+    S.chats.push({id, num: id, type: 'AI', avatar: '🤖', topic: null, n: 0,
+      subs: [], unread: 0, messages: [{me: false, text: 'Это пример чата. Выбери тему и попробуй интерфейс. Сообщения остаются только в этой вкладке до перезагрузки или выхода из деморежима.'}]});
+  } else if (path === 'topic' && chat && S.topics[body.key]) {
+    chat.topic = body.key;
+    chat.messages.push({me: false, text: `Тема: ${S.topics[body.key]}. В деморежиме можно проверить отправку сообщений; для ответов ИИ и поиска собеседника нужен вход на работающем сервере.`});
+  } else if (path === 'send' && chat) {
+    // send() already adds the user's message to the local conversation.
+    chat.messages.push({me: false, text: 'Демо: сообщение добавлено в этой вкладке. ИИ и реальные собеседники здесь не подключены.'});
+  } else if (path === 'close' && chat) {
+    Object.assign(chat, {topic: null, n: 0, subs: [], messages: []});
+  } else if (path === 'profile') {
+    Object.assign(S.account, body);
+  } else if (path === 'settings') {
+    Object.assign(S.settings, body);
+  }
+  lastKey = ''; render();
+}
+
+function startDemo() {
+  sessionVersion++; authenticated = false; demoMode = true; demoChatId = 0;
+  resetView();
+  S = {chats: [], topics: {anime: '🎌 Аниме', football: '⚽ Футбол', games: '🎮 Игры', music: '🎵 Музыка'},
+    account: {name: 'Гость', bio: 'Демонстрационный профиль'},
+    settings: {lang: 'auto', push: false}, langs: {auto: 'Авто', ru: 'Русский', en: 'English', kk: 'Қазақша'}};
+  $('#demo-banner').hidden = false; $('#auth-submit').disabled = false;
+  $('#new').textContent = 'Новый демочат';
+  showAuth(false); demoCall('new'); show('chats'); open(S.chats[0].id);
+}
+
+$('#auth-skip').onclick = startDemo;
+$('#demo-login').onclick = logout;
 
 function showAuth(show = true) {
   $('#auth').hidden = !show;
-  if (show) setTimeout(() => $('#auth-email').focus(), 0);
+  if (show) setTimeout(() => { if (!$('#auth').hidden) $('#auth-email').focus(); }, 0);
 }
 
 function setAuthMode(mode) {
@@ -780,29 +838,42 @@ async function authRequest(path, body = {}) {
 $('#auth-toggle').onclick = () => setAuthMode(authMode === 'login' ? 'register' : 'login');
 $('#auth-form').onsubmit = async e => {
   e.preventDefault();
+  const version = ++sessionVersion;
   const button = $('#auth-submit'); button.disabled = true; $('#auth-error').textContent = '';
   try {
     await authRequest(authMode, {email: $('#auth-email').value, password: $('#auth-password').value,
       name: $('#auth-name').value});
+    if (version !== sessionVersion) return;
     authenticated = true; showAuth(false); show('chats'); $('#auth-password').value = '';
     await call('state');
-  } catch (err) { $('#auth-error').textContent = err.message; }
-  finally { button.disabled = false; }
+  } catch (err) { if (version === sessionVersion) $('#auth-error').textContent = err.message; }
+  finally { if (version === sessionVersion) button.disabled = false; }
 };
 
 async function logout() {
-  try { await authRequest('logout'); } catch (e) {}
-  authenticated = false; loaded = false; S = {chats: [], topics: {}}; closePanel(); show('chats'); showAuth(true);
+  const wasDemo = demoMode, version = ++sessionVersion;
+  authenticated = false;
+  if (!wasDemo) { try { await authRequest('logout'); } catch (e) {} }
+  if (version !== sessionVersion) return;
+  demoMode = false; $('#demo-banner').hidden = true;
+  $('#new').textContent = 'Новый чат с ИИ';
+  resetView(); S = {chats: [], topics: {}};
+  setAuthMode('login'); show('chats'); showAuth(true);
 }
 
 async function call(path, body = {}) {
+  if (demoMode) return demoCall(path, body);
+  const version = sessionVersion;
   const r = await fetch('/api/' + path, {method: 'POST',
     credentials: 'include', headers: {'Content-Type': 'application/json',
       ...(inTelegram ? {'X-Init-Data': tg.initData} : {})}, body: JSON.stringify(body)});
+  if (version !== sessionVersion) return;
   if (r.status === 401) { authenticated = false; showAuth(true); throw new Error('auth'); }
   if (!r.ok) throw new Error(r.status);
+  const data = await r.json();
+  if (version !== sessionVersion) return;
   const old = S;
-  S = await r.json();
+  S = data;
   if (loaded) notify(old, S);
   loaded = true;
   if (S.notice) alertUser(S.notice);
@@ -826,6 +897,7 @@ const sub = c => c.type === 'CLOSED' ? 'Чат завершён' : c.topic ? S.t
 
 /* подтемы выбранной темы + счётчик до начала поиска собеседника */
 function subsHtml(c) {
+  if (demoMode) return '';
   if (c.type !== 'AI' || !c.topic) return '';
   const cat = (S.catalog || {})[c.topic], left = Math.max(0, 3 - c.n);
   let h = `<div class="hint" style="margin:0 auto .8rem;max-width:32rem"><b>${left ? `Поиск собеседника через ${left} сообщ.` : 'Ищем собеседника…'}</b>`;
@@ -873,7 +945,7 @@ function render() {
 
   const av = $('#hav'); av.textContent = icon(c); av.className = 'av ' + (c.topic ? 't' : '');
   $('#hti').textContent = 'Чат ' + c.num;
-  $('#hsu').textContent = (c.type === 'AI' ? 'ИИ · ' : c.type === 'HUMAN' ? 'Живой собеседник · ' : '') + (c.topic ? S.topics[c.topic] : 'тема не выбрана');
+  $('#hsu').textContent = (demoMode ? 'Демо · ' : c.type === 'AI' ? 'ИИ · ' : c.type === 'HUMAN' ? 'Живой собеседник · ' : '') + (c.topic ? S.topics[c.topic] : 'тема не выбрана');
   $('#end').textContent = c.type === 'HUMAN' ? 'Завершить' : c.type === 'AI' ? 'Очистить' : '';
   $('#in').disabled = $('#send').disabled = c.type === 'CLOSED';
   $('#in').placeholder = c.type === 'CLOSED' ? 'Чат завершён' : 'Сообщение';
@@ -958,11 +1030,13 @@ $('#in').onkeydown = e => { if (e.key === 'Enter') send(); };
 
 applyAll();
 async function bootstrap() {
+  const version = sessionVersion;
   if (inTelegram) {
     authenticated = true;
   } else {
-    try { await authRequest('me'); authenticated = true; }
-    catch (e) { showAuth(true); return; }
+    showAuth(true);
+    try { await authRequest('me'); if (version !== sessionVersion) return; authenticated = true; }
+    catch (e) { if (version === sessionVersion) showAuth(true); return; }
   }
   showAuth(false);
   show('chats');
