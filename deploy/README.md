@@ -2,6 +2,27 @@
 
 These files prepare a deployment; they do not create Oracle resources or publish code.
 
+## GitHub Pages frontend
+
+The repository's Pages site uses **Deploy from a branch**, with `main` and
+`/(root)` as its publishing source. The root `index.html` is a Jekyll entry
+point that includes `webapp/index.html`, so the existing UI is published at
+`https://the-fabulous.github.io/telegram_socialbot/` without copying its source.
+The original `/telegram_socialbot/webapp/` URL remains available.
+Do not add `.nojekyll`: the root entry point requires Jekyll's `include_relative`.
+`_config.yml` excludes server code, database files and deployment tooling from
+the generated static site.
+
+Pages publishes HTML, CSS and JavaScript only. It cannot run `bot.py` or the
+`/api/*` endpoints used by registration, login and chats. To use the complete
+application, deploy the Python service below and open its HTTPS address; the
+service serves the same `webapp/index.html` together with its API. Set
+`WEBAPP_URL` to that server address, not the GitHub Pages address.
+
+After a Pages deployment, verify that the root URL returns HTTP 200 and the
+Social Bridge HTML (not unrendered Liquid), and that `/bot.py` and
+`/data.db.bak-v1` under the project URL return HTTP 404.
+
 ## Target layout
 
 - Ubuntu 24.04 Ampere A1 or AMD Micro VM.

@@ -1,0 +1,29 @@
+# GitHub Pages builds main / (root). Keep webapp/index.html as the single
+# source for both the Python server and the root Pages entry point.
+encoding: utf-8
+
+# Only browser-facing files belong in the published site.
+exclude:
+  - "*.py"
+  - "*.db*"
+  - "*.lock"
+  - "*.sql"
+  - "*.json"
+  - "*.json.*"
+  - "*.pem"
+  - "*.key"
+  - .env
+  - .env.example
+  - .github
+  - .idea
+  - .venv
+  - __pycache__
+  - deploy
+  - tests
+  - tools
+  - node_modules
+  - vendor
+  - Gemfile
+  - Gemfile.lock
+  - Procfile
+  - requirements.txt
