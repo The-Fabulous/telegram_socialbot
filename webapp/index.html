@@ -410,6 +410,24 @@ try { tg.disableVerticalSwipes(); } catch (e) {}
 try { if (tg.isVersionAtLeast('8.0') && !tg.isFullscreen) tg.requestFullscreen(); } catch (e) {}
 
 const $ = s => document.querySelector(s);
+const API_BASE_URL = location.origin === 'https://the-fabulous.github.io'
+  ? 'https://telegram-socialbot-im20.onrender.com' : location.origin;
+const CROSS_ORIGIN_API = API_BASE_URL !== location.origin;
+const SESSION_KEY = 'sb-api-session:' + API_BASE_URL;
+let apiToken = '';
+try { if (CROSS_ORIGIN_API) apiToken = sessionStorage.getItem(SESSION_KEY) || ''; } catch (e) {}
+function setApiToken(token) {
+  apiToken = token || '';
+  try {
+    if (apiToken) sessionStorage.setItem(SESSION_KEY, apiToken);
+    else sessionStorage.removeItem(SESSION_KEY);
+  } catch (e) {}
+}
+function apiHeaders() {
+  return {'Content-Type': 'application/json',
+    ...(CROSS_ORIGIN_API && apiToken ? {Authorization: 'Bearer ' + apiToken} : {}),
+    ...(inTelegram ? {'X-Init-Data': tg.initData} : {})};
+}
 const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const mq = matchMedia('(max-width:720px)');
 const enter = el => { el.classList.remove('enter'); void el.offsetWidth; el.classList.add('enter'); };
@@ -827,9 +845,12 @@ function setAuthMode(mode) {
 }
 
 async function authRequest(path, body = {}) {
-  const r = await fetch('/api/auth/' + path, {method: 'POST', credentials: 'include',
-    headers: {'Content-Type': 'application/json', ...(inTelegram ? {'X-Init-Data': tg.initData} : {})},
-    body: JSON.stringify(body)});
+  let r;
+  try {
+    r = await fetch(API_BASE_URL + '/api/auth/' + path, {method: 'POST',
+      credentials: CROSS_ORIGIN_API ? 'omit' : 'include', headers: apiHeaders(),
+      body: JSON.stringify({...body, ...(CROSS_ORIGIN_API ? {session_transport: 'bearer'} : {})})});
+  } catch (e) { throw new Error('Не удалось подключиться к серверу. Если он запускается, подожди минуту и попробуй ещё раз.'); }
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data.error || 'Не удалось выполнить запрос.');
   return data;
@@ -841,9 +862,13 @@ $('#auth-form').onsubmit = async e => {
   const version = ++sessionVersion;
   const button = $('#auth-submit'); button.disabled = true; $('#auth-error').textContent = '';
   try {
-    await authRequest(authMode, {email: $('#auth-email').value, password: $('#auth-password').value,
+    const result = await authRequest(authMode, {email: $('#auth-email').value, password: $('#auth-password').value,
       name: $('#auth-name').value});
     if (version !== sessionVersion) return;
+    if (CROSS_ORIGIN_API) {
+      if (!result.session_token) throw new Error('Сервер ещё обновляется. Попробуй войти через минуту.');
+      setApiToken(result.session_token);
+    }
     authenticated = true; showAuth(false); show('chats'); $('#auth-password').value = '';
     await call('state');
   } catch (err) { if (version === sessionVersion) $('#auth-error').textContent = err.message; }
@@ -855,6 +880,7 @@ async function logout() {
   authenticated = false;
   if (!wasDemo) { try { await authRequest('logout'); } catch (e) {} }
   if (version !== sessionVersion) return;
+  setApiToken('');
   demoMode = false; $('#demo-banner').hidden = true;
   $('#new').textContent = 'Новый чат с ИИ';
   resetView(); S = {chats: [], topics: {}};
@@ -864,11 +890,10 @@ async function logout() {
 async function call(path, body = {}) {
   if (demoMode) return demoCall(path, body);
   const version = sessionVersion;
-  const r = await fetch('/api/' + path, {method: 'POST',
-    credentials: 'include', headers: {'Content-Type': 'application/json',
-      ...(inTelegram ? {'X-Init-Data': tg.initData} : {})}, body: JSON.stringify(body)});
+  const r = await fetch(API_BASE_URL + '/api/' + path, {method: 'POST',
+    credentials: CROSS_ORIGIN_API ? 'omit' : 'include', headers: apiHeaders(), body: JSON.stringify(body)});
   if (version !== sessionVersion) return;
-  if (r.status === 401) { authenticated = false; showAuth(true); throw new Error('auth'); }
+  if (r.status === 401) { setApiToken(''); authenticated = false; showAuth(true); throw new Error('auth'); }
   if (!r.ok) throw new Error(r.status);
   const data = await r.json();
   if (version !== sessionVersion) return;

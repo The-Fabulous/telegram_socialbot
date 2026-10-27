@@ -24,6 +24,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 WEBAPP_URL = (os.getenv("WEBAPP_URL") or "").strip().rstrip("/")
 
 from db import DB  # noqa: E402
+from api_transport import cors, session_token  # noqa: E402
 from gpt import LANGS, TOPICS, SocialBridgeAI  # noqa: E402
 from matching import CATALOG  # noqa: E402
 
@@ -427,13 +428,24 @@ def request_user(request: web.Request) -> dict | None:
         if telegram_user:
             name = " ".join(filter(None, (telegram_user.get("first_name"), telegram_user.get("last_name"))))
             return db.get_or_create_telegram_user(telegram_user["id"], name)
-    return db.user_from_session(request.cookies.get(SESSION_COOKIE, ""))
+    return db.user_from_session(session_token(request, SESSION_COOKIE))
 
 
 def set_session_cookie(response: web.StreamResponse, token: str, request: web.Request):
     forwarded_https = request.headers.get("X-Forwarded-Proto", "").split(",")[0].strip() == "https"
     response.set_cookie(SESSION_COOKIE, token, max_age=SESSION_AGE, httponly=True,
                         secure=request.secure or forwarded_https, samesite="Lax", path="/")
+
+
+def auth_response(request: web.Request, token: str, body: dict):
+    # Pages uses a bearer session because browsers may block Render cookies
+    # when the frontend is hosted on github.io. Never return passwords/hashes.
+    if body.get("session_transport") == "bearer":
+        return web.json_response({"ok": True, "session_token": token},
+                                 headers={"Cache-Control": "no-store"})
+    response = web.json_response({"ok": True})
+    set_session_cookie(response, token, request)
+    return response
 
 
 async def auth_register(request: web.Request):
@@ -452,9 +464,7 @@ async def auth_register(request: web.Request):
     if not user:
         return web.json_response({"error": "Аккаунт с таким email уже существует."}, status=409)
     token = db.create_session(user["id"], SESSION_AGE)
-    response = web.json_response({"ok": True})
-    set_session_cookie(response, token, request)
-    return response
+    return auth_response(request, token, body)
 
 
 async def auth_login(request: web.Request):
@@ -468,15 +478,14 @@ async def auth_login(request: web.Request):
     if not user or not check_password(password, user.get("password_hash") or ""):
         return web.json_response({"error": "Неверный email или пароль."}, status=401)
     token = db.create_session(user["id"], SESSION_AGE)
-    response = web.json_response({"ok": True})
-    set_session_cookie(response, token, request)
-    return response
+    return auth_response(request, token, body)
 
 
 async def auth_logout(request: web.Request):
-    db.delete_session(request.cookies.get(SESSION_COOKIE, ""))
+    db.delete_session(session_token(request, SESSION_COOKIE))
     response = web.json_response({"ok": True})
-    response.del_cookie(SESSION_COOKIE, path="/")
+    if "Authorization" not in request.headers:
+        response.del_cookie(SESSION_COOKIE, path="/")
     return response
 
 
@@ -532,12 +541,8 @@ async def cmd_start(message: types.Message):
     )
 
 
-async def main():
-    restore()
-    db.start()
-    spawn(matchmaker())
-
-    app = web.Application()
+def create_app():
+    app = web.Application(middlewares=[cors])
     app.router.add_get("/", index)
     app.router.add_post("/api/auth/register", auth_register)
     app.router.add_post("/api/auth/login", auth_login)
@@ -545,6 +550,15 @@ async def main():
     app.router.add_post("/api/auth/me", auth_me)
     for name, fn in HANDLERS.items():
         app.router.add_post(f"/api/{name}", api(fn))
+    return app
+
+
+async def main():
+    restore()
+    db.start()
+    spawn(matchmaker())
+
+    app = create_app()
     runner = web.AppRunner(app)
     await runner.setup()
     await web.TCPSite(runner, "0.0.0.0", int(os.getenv("PORT", "8080"))).start()

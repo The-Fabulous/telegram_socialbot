@@ -13,11 +13,44 @@ Do not add `.nojekyll`: the root entry point requires Jekyll's `include_relative
 `_config.yml` excludes server code, database files and deployment tooling from
 the generated static site.
 
-Pages publishes HTML, CSS and JavaScript only. It cannot run `bot.py` or the
-`/api/*` endpoints used by registration, login and chats. To use the complete
-application, deploy the Python service below and open its HTTPS address; the
-service serves the same `webapp/index.html` together with its API. Set
-`WEBAPP_URL` to that server address, not the GitHub Pages address.
+Pages publishes HTML, CSS and JavaScript only. Its frontend sends API requests
+to `https://telegram-socialbot-im20.onrender.com`. The Render-hosted frontend
+and local copies continue to use their own origin. Change `API_BASE_URL` in
+`webapp/index.html` if the backend moves.
+
+The backend accepts the Pages origin `https://the-fabulous.github.io` by
+default. Additional frontend origins can be configured as a comma-separated
+`ALLOWED_ORIGINS` environment variable (origins only, without URL paths).
+Unapproved origins are rejected before the API handler runs.
+
+Pages requests a bearer session on registration/login, stores it in
+`sessionStorage` for the current tab, and sends it in the `Authorization`
+header. This avoids third-party-cookie restrictions between github.io and
+onrender.com. Reloading the tab restores the session; logout revokes it on
+the backend and removes the stored token. Closing the tab normally clears
+the browser's session storage. No password or model API key is stored there.
+When opened directly on Render, the UI uses the existing HttpOnly cookie.
+
+## Render service
+
+Deploy `main` as a Python Web Service with an empty root directory:
+
+- Build command: `pip install -r requirements.txt`.
+- Start command: `python bot.py`.
+- Set `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL` for your model provider.
+- Render supplies `PORT` and `RENDER_EXTERNAL_URL` automatically.
+- Optionally set `WEBAPP_URL` to the public frontend URL for Telegram buttons.
+
+After pushing a change, both Pages and Render must finish deploying it. Verify
+that an `OPTIONS /api/auth/me` request with the Pages `Origin` returns 204 and
+`Access-Control-Allow-Origin: https://the-fabulous.github.io`, then verify login
+and logout from Pages.
+
+The current application uses SQLite. A Free Render service has no persistent
+disk: local accounts and messages can be lost on redeploy, restart or spin-down.
+For durable accounts, mount a persistent disk and set `DB_PATH` to a path on
+that disk, or complete the integration of an external database. A database
+backup must never be served as a static asset or committed to Git.
 
 After a Pages deployment, verify that the root URL returns HTTP 200 and the
 Social Bridge HTML (not unrendered Liquid), and that `/bot.py` and
